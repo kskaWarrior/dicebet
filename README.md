@@ -57,7 +57,7 @@ Tests (payout math, fairness determinism/uniformity): `npm test`.
 
 **Web → Cloudflare Pages** — connect the repo; build command `npm run generate -w apps/web`, output dir `apps/web/.output/public`, and set the `NUXT_PUBLIC_*` env vars from [apps/web/.env.example](apps/web/.env.example).
 
-**Mobile** — `npm run generate -w apps/web`, then wrap `apps/web/.output/public` with Capacitor (`npx cap add android`). Remember the API's `CORS_ORIGINS` must include `capacitor://localhost` and `http://localhost`.
+**Mobile** — `npm run generate -w apps/web`, then wrap `apps/web/.output/public` with Capacitor (`npx cap add android`). Remember the API's `CORS_ORIGINS` must include `capacitor://localhost` and `http://localhost`. The mobile CI build bakes public config into the APK from repo variables `API_BASE` (Cloud Run URL), `SUPABASE_URL`, and `SUPABASE_ANON_KEY` — all three must be set or [mobile.yml](.github/workflows/mobile.yml) fails fast.
 
 ## Disclaimer
 

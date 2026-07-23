@@ -27,7 +27,21 @@ jobs:
           java-version: 21
 
       - run: npm install
+
+      # The APK bundles the static web build, so public runtime config must be
+      # baked in here (the web deploy gets these from Cloudflare Pages instead).
+      - name: Check public config vars are set
+        run: |
+          [ -n "${{ vars.SUPABASE_URL }}" ] || { echo "::error::Repo variable SUPABASE_URL is not set"; exit 1; }
+          [ -n "${{ vars.SUPABASE_ANON_KEY }}" ] || { echo "::error::Repo variable SUPABASE_ANON_KEY is not set"; exit 1; }
+          [ -n "${{ vars.API_BASE }}" ] || { echo "::error::Repo variable API_BASE is not set"; exit 1; }
+
       - run: npm run generate -w apps/web
+        env:
+          NUXT_PUBLIC_API_BASE: ${{ vars.API_BASE }}
+          NUXT_PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          NUXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+
       - run: npx cap sync android
         working-directory: apps/web
 
