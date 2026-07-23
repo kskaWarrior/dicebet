@@ -2,7 +2,7 @@
 // Worker. The dashboard build runs `npm run generate -w apps/web`, then
 // `npx wrangler deploy` publishes this.
 {
-  "name": "dicebet-web",
+  "name": "dicebet",
   "compatibility_date": "2026-07-01",
   "assets": {
     "directory": "./apps/web/.output/public",
