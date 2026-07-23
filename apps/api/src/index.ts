@@ -27,6 +27,14 @@ app.use("/seeds", seeds);
 app.use("/wallet", wallet);
 app.use("/deposits", deposits);
 
+// Express 5 forwards rejected async handlers here instead of crashing.
+app.use(
+  (err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    console.error("Unhandled route error:", err);
+    res.status(500).json({ error: "INTERNAL" });
+  },
+);
+
 app.listen(env.port, "0.0.0.0", () => {
   console.log(`DiceBet API listening on :${env.port}`);
 });
