@@ -9,6 +9,7 @@ interface Bet {
 }
 
 const api = useApi();
+const { t } = useI18n();
 const betsList = ref<Bet[]>([]);
 const loading = ref(true);
 
@@ -24,13 +25,19 @@ onMounted(async () => {
 
 <template>
   <div>
-    <h1>Bet history</h1>
-    <p v-if="loading">Loading…</p>
-    <p v-else-if="!betsList.length">No bets yet — go roll some dice.</p>
+    <h1>{{ t("history.title") }}</h1>
+    <p v-if="loading">{{ t("history.loading") }}</p>
+    <p v-else-if="!betsList.length">{{ t("history.empty") }}</p>
     <div v-else class="scroll">
       <table>
         <thead>
-          <tr><th>When</th><th>Stake</th><th>Target</th><th>Roll</th><th>Payout</th></tr>
+          <tr>
+            <th>{{ t("history.when") }}</th>
+            <th>{{ t("history.stake") }}</th>
+            <th>{{ t("history.target") }}</th>
+            <th>{{ t("history.roll") }}</th>
+            <th>{{ t("history.payout") }}</th>
+          </tr>
         </thead>
         <tbody>
           <tr v-for="bet in betsList" :key="bet.id" :class="bet.payout > 0 ? 'won' : 'lost'">
@@ -49,7 +56,7 @@ onMounted(async () => {
 <style scoped>
 .scroll { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #2c3352; white-space: nowrap; }
+th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
 .won td:last-child { color: #86efac; }
 .lost td:nth-child(4) { color: #fca5a5; }
 </style>

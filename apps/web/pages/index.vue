@@ -8,6 +8,7 @@ interface BetResponse {
 
 const api = useApi();
 const balance = useBalance();
+const { t } = useI18n();
 const { playShake, playWin, playLose, muted } = useDiceAudio();
 
 const target = ref(50);
@@ -19,7 +20,6 @@ const error = ref("");
 const depositBusy = ref(false);
 
 const multiplier = computed(() => 99 / target.value);
-const winChance = computed(() => target.value);
 const potentialWin = computed(() => Math.floor(stakeDollars.value * 100 * multiplier.value));
 
 onMounted(refreshWallet);
@@ -65,9 +65,7 @@ async function roll() {
     else playLose();
   } catch (e: any) {
     error.value =
-      e?.data?.error === "INSUFFICIENT_FUNDS"
-        ? "Not enough coins — make a (test) deposit below."
-        : "Bet failed, try again.";
+      e?.data?.error === "INSUFFICIENT_FUNDS" ? t("game.errInsufficient") : t("game.errFailed");
   } finally {
     if (ticker) clearInterval(ticker);
     rolling.value = false;
@@ -83,7 +81,7 @@ async function deposit(amountCents: number) {
     });
     window.location.href = res.url;
   } catch {
-    error.value = "Could not start checkout.";
+    error.value = t("game.errCheckout");
     depositBusy.value = false;
   }
 }
@@ -92,26 +90,26 @@ async function deposit(amountCents: number) {
 <template>
   <div class="game">
     <div class="title-row">
-      <h1>Dice</h1>
+      <h1>{{ t("game.title") }}</h1>
       <button class="mute" :aria-label="muted ? 'Unmute' : 'Mute'" @click="muted = !muted">
         {{ muted ? "🔇" : "🔊" }}
       </button>
     </div>
-    <p class="hint">Roll under <strong>{{ target }}</strong> to win. Payout: {{ multiplier.toFixed(4) }}× (1% house edge).</p>
+    <p class="hint">{{ t("game.rollUnder", { target, mult: multiplier.toFixed(4) }) }}</p>
 
     <label>
-      Win chance: {{ winChance }}%
+      {{ t("game.winChance", { pct: target }) }}
       <input v-model.number="target" type="range" min="1" max="98" step="1" :disabled="rolling" />
     </label>
 
     <label>
-      Stake ($)
+      {{ t("game.stake") }}
       <input v-model.number="stakeDollars" type="number" min="0.01" max="1000" step="0.01" :disabled="rolling" />
     </label>
 
-    <p class="hint">Win pays {{ formatCents(potentialWin) }}</p>
+    <p class="hint">{{ t("game.winPays", { amount: formatCents(potentialWin) }) }}</p>
 
-    <button :disabled="rolling" @click="roll">{{ rolling ? "Rolling…" : "Roll" }}</button>
+    <button :disabled="rolling" @click="roll">{{ rolling ? t("game.rolling") : t("game.roll") }}</button>
 
     <div v-if="rolling" class="result spinning">
       <span class="die" aria-hidden="true">🎲</span>
@@ -119,14 +117,14 @@ async function deposit(amountCents: number) {
     </div>
     <div v-else-if="last" class="result reveal" :class="last.win ? 'won' : 'lost'">
       <span class="roll">{{ last.bet.roll.toFixed(2) }}</span>
-      <span>{{ last.win ? `Won ${formatCents(last.bet.payout)}!` : "Lost" }}</span>
+      <span>{{ last.win ? t("game.won", { amount: formatCents(last.bet.payout) }) : t("game.lost") }}</span>
     </div>
 
     <p v-if="error" class="error">{{ error }}</p>
 
     <hr />
-    <h2>Deposit (Stripe test mode)</h2>
-    <p class="hint">Use card 4242 4242 4242 4242, any future expiry, any CVC.</p>
+    <h2>{{ t("game.depositTitle") }}</h2>
+    <p class="hint">{{ t("game.depositHint") }}</p>
     <div class="deposits">
       <button :disabled="depositBusy" @click="deposit(5_00)">+$5</button>
       <button :disabled="depositBusy" @click="deposit(20_00)">+$20</button>
@@ -141,7 +139,7 @@ async function deposit(amountCents: number) {
 .title-row h1 { margin: 0; }
 .mute { background: transparent; font-size: 1.3rem; padding: 0.2rem; }
 label { display: flex; flex-direction: column; gap: 0.4rem; }
-.hint { color: #9aa3c7; margin: 0; font-size: 0.9rem; }
+.hint { color: var(--muted); margin: 0; font-size: 0.9rem; }
 .result {
   display: flex;
   align-items: center;
@@ -151,7 +149,7 @@ label { display: flex; flex-direction: column; gap: 0.4rem; }
   font-size: 1.2rem;
 }
 .result .roll { font-size: 2rem; font-weight: 800; font-variant-numeric: tabular-nums; }
-.spinning { background: #1a1f35; color: #9aa3c7; }
+.spinning { background: var(--surface); color: var(--muted); }
 .spinning .die { font-size: 2rem; animation: tumble 0.5s linear infinite; }
 .reveal { animation: pop 0.25s ease-out; }
 .won { background: #14532d; color: #86efac; }
@@ -173,5 +171,5 @@ label { display: flex; flex-direction: column; gap: 0.4rem; }
 }
 .error { color: #fca5a5; }
 .deposits { display: flex; gap: 0.75rem; }
-hr { border-color: #2c3352; width: 100%; }
+hr { border-color: var(--border); width: 100%; }
 </style>
