@@ -51,7 +51,7 @@ Tests (payout math, fairness determinism/uniformity): `npm test`.
 **API → Cloud Run** — [.github/workflows/deploy-api.yml](.github/workflows/deploy-api.yml) tests, builds, and deploys on push to `main`. One-time setup:
 
 1. Create an Artifact Registry docker repo (`dicebet`) and enable Cloud Run.
-2. Put the four secrets in **Secret Manager**: `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`.
+2. Put the three secrets in **Secret Manager**: `SUPABASE_SERVICE_ROLE_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`. (User tokens are verified via Supabase's public JWKS endpoint, so no JWT secret is needed.)
 3. Set up Workload Identity Federation for GitHub Actions; add repo secrets `GCP_WORKLOAD_IDENTITY_PROVIDER` and `GCP_SERVICE_ACCOUNT`, and repo variables `SUPABASE_URL`, `CORS_ORIGINS`, `CHECKOUT_RETURN_URL`.
 4. Point the Stripe webhook endpoint at `https://<cloud-run-url>/stripe/webhook`.
 

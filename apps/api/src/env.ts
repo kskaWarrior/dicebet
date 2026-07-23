@@ -8,7 +8,6 @@ export const env = {
   port: Number(process.env.PORT ?? 8080),
   supabaseUrl: required("SUPABASE_URL"),
   supabaseServiceRoleKey: required("SUPABASE_SERVICE_ROLE_KEY"),
-  supabaseJwtSecret: required("SUPABASE_JWT_SECRET"),
   stripeSecretKey: required("STRIPE_SECRET_KEY"),
   stripeWebhookSecret: required("STRIPE_WEBHOOK_SECRET"),
   // Comma-separated list of allowed browser origins (web app + Capacitor)
