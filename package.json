@@ -1,0 +1,13 @@
+{
+  "name": "dicebet",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev -w apps/api",
+    "dev:web": "npm run dev -w apps/web",
+    "test": "npm run test -w apps/api",
+    "build": "npm run build -w apps/api && npm run generate -w apps/web"
+  }
+}
