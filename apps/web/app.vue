@@ -28,18 +28,20 @@ async function signOut() {
   <div class="shell">
     <p class="banner">{{ t("banner") }}</p>
     <header>
-      <NuxtLink to="/" class="logo">🎲 DiceBet</NuxtLink>
-      <div class="right">
-        <nav v-if="loggedIn">
-          <NuxtLink to="/">{{ t("nav.play") }}</NuxtLink>
-          <NuxtLink to="/history">{{ t("nav.history") }}</NuxtLink>
-          <NuxtLink to="/fairness">{{ t("nav.fairness") }}</NuxtLink>
-          <span class="balance">{{ formatCents(balance) }}</span>
-        </nav>
-        <ThemePicker />
-        <LanguagePicker />
-        <button v-if="loggedIn" @click="signOut">{{ t("nav.signout") }}</button>
+      <div class="top-row">
+        <NuxtLink to="/" class="logo">🎲 DiceBet</NuxtLink>
+        <div class="controls">
+          <ThemePicker />
+          <LanguagePicker />
+        </div>
       </div>
+      <nav v-if="loggedIn">
+        <NuxtLink to="/">{{ t("nav.play") }}</NuxtLink>
+        <NuxtLink to="/history">{{ t("nav.history") }}</NuxtLink>
+        <NuxtLink to="/fairness">{{ t("nav.fairness") }}</NuxtLink>
+        <span class="balance">{{ formatCents(balance) }}</span>
+        <button class="signout" @click="signOut">{{ t("nav.signout") }}</button>
+      </nav>
     </header>
     <main>
       <NuxtPage />
@@ -117,14 +119,28 @@ input[type="range"] { accent-color: var(--accent); padding: 0; }
 }
 header {
   display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.75rem 0;
+}
+.top-row {
+  display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem 0;
   gap: 0.75rem;
-  flex-wrap: wrap;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--border);
 }
-header .right { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
-header nav { display: flex; align-items: center; gap: 1rem; }
+.controls { display: flex; align-items: center; gap: 0.6rem; }
+header nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--border);
+}
+.signout { margin-left: auto; padding: 0.35rem 0.8rem; font-size: 0.9rem; }
 .logo { font-size: 1.3rem; font-weight: 700; color: inherit; }
 .balance {
   background: #14532d;
