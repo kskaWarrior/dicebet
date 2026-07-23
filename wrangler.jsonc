@@ -1,0 +1,12 @@
+// Cloudflare Workers config: serves the Nuxt static build as an assets-only
+// Worker. The dashboard build runs `npm run generate -w apps/web`, then
+// `npx wrangler deploy` publishes this.
+{
+  "name": "dicebet-web",
+  "compatibility_date": "2026-07-01",
+  "assets": {
+    "directory": "./apps/web/.output/public",
+    // SPA fallback: deep links like /history resolve to index.html
+    "not_found_handling": "single-page-application"
+  }
+}
