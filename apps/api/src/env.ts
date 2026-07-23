@@ -1,3 +1,11 @@
+// Load ./.env in local dev; on Cloud Run there is no file and env vars
+// come from the platform, so a missing file is fine.
+try {
+  process.loadEnvFile();
+} catch {
+  /* no .env file */
+}
+
 const required = (name: string): string => {
   const value = process.env[name];
   if (!value) throw new Error(`Missing required env var: ${name}`);
