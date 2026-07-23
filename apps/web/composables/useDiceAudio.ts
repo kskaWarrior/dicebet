@@ -138,7 +138,7 @@ export function useDiceAudio() {
   function playLose() {
     if (muted.value) return;
     const now = audioCtx().currentTime;
-    blip(now, 130.81, 0.25, "triangle", 0.08); // C3
+    blip(now, 130.81, 0.25, "triangle", 0.104); // C3
   }
 
   return { playShake, playWin, playLose, muted };

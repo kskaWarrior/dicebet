@@ -91,7 +91,14 @@ jobs:
           node-version: 22
 
       - run: npm install
+
+      # Same public config as the Android job, so a future signed/distributed
+      # iOS build doesn't ship with an empty supabaseUrl.
       - run: npm run generate -w apps/web
+        env:
+          NUXT_PUBLIC_API_BASE: ${{ vars.API_BASE }}
+          NUXT_PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          NUXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
 
       # cap sync ios runs `pod install` under the hood on macOS
       - run: npx cap sync ios
