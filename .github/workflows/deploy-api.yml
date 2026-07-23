@@ -6,10 +6,10 @@ on:
     paths: ["apps/api/**", ".github/workflows/deploy-api.yml"]
   pull_request:
     paths: ["apps/api/**"]
+  workflow_dispatch:
 
 env:
-  # ---- fill these in for your GCP project ----
-  GCP_PROJECT_ID: your-project-id
+  GCP_PROJECT_ID: dice-bet-503309
   GCP_REGION: us-central1
   SERVICE_NAME: dicebet-api
   ARTIFACT_REPO: dicebet # Artifact Registry docker repo name
