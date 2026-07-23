@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "317202176199",
+    "project_id": "dice-bet-503309",
+    "storage_bucket": "dice-bet-503309.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:317202176199:android:25e96a02fee1cd4156c6e2",
+        "android_client_info": {
+          "package_name": "com.kskawarrior.dicebet"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAvtimFz8UJvWeekQteSiRui6Xe4V6CT68"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

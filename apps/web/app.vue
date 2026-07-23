@@ -10,6 +10,7 @@ useHead({ htmlAttrs: { lang: computed(() => (locale.value === "pt" ? "pt-BR" : l
 onMounted(async () => {
   initLocale();
   initTheme();
+  initCrashReporting();
   const { data } = await supabase.auth.getSession();
   loggedIn.value = !!data.session;
   supabase.auth.onAuthStateChange((_event, session) => {
