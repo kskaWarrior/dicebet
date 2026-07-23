@@ -3,19 +3,19 @@
 -- it must always equal sum(transactions.amount) for that user, enforced by
 -- doing every balance change inside place_bet/apply_deposit.
 
-create table public.profiles (
+create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   username text unique,
   created_at timestamptz not null default now()
 );
 
-create table public.wallets (
+create table if not exists public.wallets (
   user_id uuid primary key references auth.users (id) on delete cascade,
   balance bigint not null default 0 check (balance >= 0),
   updated_at timestamptz not null default now()
 );
 
-create table public.transactions (
+create table if not exists public.transactions (
   id bigint generated always as identity primary key,
   user_id uuid not null references auth.users (id) on delete cascade,
   type text not null check (type in ('deposit', 'bet', 'payout')),
@@ -27,9 +27,9 @@ create table public.transactions (
   created_at timestamptz not null default now()
 );
 
-create index transactions_user_idx on public.transactions (user_id, created_at desc);
+create index if not exists transactions_user_idx on public.transactions (user_id, created_at desc);
 
-create table public.bets (
+create table if not exists public.bets (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,
   game text not null default 'dice',
@@ -44,11 +44,11 @@ create table public.bets (
   created_at timestamptz not null default now()
 );
 
-create index bets_user_idx on public.bets (user_id, created_at desc);
+create index if not exists bets_user_idx on public.bets (user_id, created_at desc);
 
 -- Provably-fair seed pairs. Managed exclusively by the API (service role):
 -- the plain server_seed must never be readable by clients until revealed.
-create table public.user_seeds (
+create table if not exists public.user_seeds (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,
   server_seed text not null,
@@ -60,7 +60,7 @@ create table public.user_seeds (
   created_at timestamptz not null default now()
 );
 
-create unique index user_seeds_one_active_idx on public.user_seeds (user_id) where active;
+create unique index if not exists user_seeds_one_active_idx on public.user_seeds (user_id) where active;
 
 -- ---------------------------------------------------------------------------
 -- Row Level Security: clients may read their own rows. All writes go through
@@ -73,14 +73,19 @@ alter table public.transactions enable row level security;
 alter table public.bets enable row level security;
 alter table public.user_seeds enable row level security;
 
+drop policy if exists "read own profile" on public.profiles;
 create policy "read own profile" on public.profiles
   for select using (auth.uid() = id);
+drop policy if exists "update own profile" on public.profiles;
 create policy "update own profile" on public.profiles
   for update using (auth.uid() = id);
+drop policy if exists "read own wallet" on public.wallets;
 create policy "read own wallet" on public.wallets
   for select using (auth.uid() = user_id);
+drop policy if exists "read own transactions" on public.transactions;
 create policy "read own transactions" on public.transactions
   for select using (auth.uid() = user_id);
+drop policy if exists "read own bets" on public.bets;
 create policy "read own bets" on public.bets
   for select using (auth.uid() = user_id);
 -- user_seeds intentionally has no select policy: unrevealed server seeds
@@ -111,6 +116,7 @@ begin
 end;
 $$;
 
+drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
