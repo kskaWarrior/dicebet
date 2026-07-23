@@ -42,7 +42,7 @@ async function roll() {
 
   // Skip the suspense for users who prefer reduced motion
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const spinMs = reducedMotion ? 0 : 900;
+  const spinMs = reducedMotion ? 0 : 1400;
 
   playShake(spinMs);
   const ticker = reducedMotion
