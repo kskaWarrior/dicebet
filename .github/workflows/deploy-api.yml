@@ -66,4 +66,4 @@ jobs:
             --min-instances 0 \
             --max-instances 2 \
             --set-secrets "SUPABASE_SERVICE_ROLE_KEY=SUPABASE_SERVICE_ROLE_KEY:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,STRIPE_WEBHOOK_SECRET=STRIPE_WEBHOOK_SECRET:latest" \
-            --set-env-vars "SUPABASE_URL=${{ vars.SUPABASE_URL }},CORS_ORIGINS=${{ vars.CORS_ORIGINS }},CHECKOUT_RETURN_URL=${{ vars.CHECKOUT_RETURN_URL }}"
+            --set-env-vars "^|^SUPABASE_URL=${{ vars.SUPABASE_URL }}|CORS_ORIGINS=${{ vars.CORS_ORIGINS }}|CHECKOUT_RETURN_URL=${{ vars.CHECKOUT_RETURN_URL }}"
