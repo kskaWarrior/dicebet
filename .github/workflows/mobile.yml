@@ -50,6 +50,7 @@ jobs:
             --project "$GCP_PROJECT_ID" \
             --type robo \
             --app apps/web/android/app/build/outputs/apk/debug/app-debug.apk \
+            --results-bucket gs://dice-bet-503309-testlab-results \
             --timeout 120s
 
       - name: Distribute to testers via App Distribution
