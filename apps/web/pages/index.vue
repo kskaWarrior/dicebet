@@ -10,6 +10,7 @@ const api = useApi();
 const balance = useBalance();
 const { t } = useI18n();
 const { playShake, playWin, playLose, muted } = useDiceAudio();
+const { burst: burstConfetti, clear: clearConfetti } = useConfetti();
 
 const target = ref(50);
 const stakeDollars = ref(1);
@@ -19,6 +20,12 @@ const last = ref<BetResponse | null>(null);
 const error = ref("");
 const depositBusy = ref(false);
 const gaugeValue = ref<number | null>(null);
+const resultWrap = ref<HTMLElement | null>(null);
+const confettiCanvas = ref<HTMLCanvasElement | null>(null);
+const flashTier = ref<"win" | "big" | null>(null);
+
+// Checked once: consistent with the reduced-motion check already made per-roll below.
+const reducedMotion = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const multiplier = computed(() => 99 / target.value);
 const potentialWin = computed(() => Math.floor(stakeDollars.value * 100 * multiplier.value));
@@ -46,9 +53,10 @@ async function roll() {
   error.value = "";
   last.value = null;
   gaugeValue.value = null;
+  flashTier.value = null;
+  if (confettiCanvas.value) clearConfetti(confettiCanvas.value);
 
   // Skip the suspense for users who prefer reduced motion
-  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const spinMs = reducedMotion ? 0 : 1400;
 
   playShake(spinMs);
@@ -71,8 +79,20 @@ async function roll() {
     last.value = res;
     balance.value = res.balance;
     gaugeValue.value = res.bet.roll;
-    if (res.win) playWin();
-    else playLose();
+    if (res.win) {
+      const tier: "win" | "big" = res.multiplier >= 2 ? "big" : "win";
+      playWin(tier);
+      if (!reducedMotion) {
+        flashTier.value = tier;
+        if (confettiCanvas.value && resultWrap.value) {
+          confettiCanvas.value.width = resultWrap.value.clientWidth;
+          confettiCanvas.value.height = resultWrap.value.clientHeight;
+          burstConfetti(confettiCanvas.value, tier);
+        }
+      }
+    } else {
+      playLose();
+    }
   } catch (e: any) {
     error.value =
       e?.data?.error === "INSUFFICIENT_FUNDS" ? t("game.errInsufficient") : t("game.errFailed");
@@ -123,13 +143,17 @@ async function deposit(amountCents: number) {
 
     <button :disabled="rolling" @click="roll">{{ rolling ? t("game.rolling") : t("game.roll") }}</button>
 
-    <div v-if="rolling" class="result spinning">
-      <span class="die" aria-hidden="true">🎲</span>
-      <span class="roll">{{ displayRoll || "…" }}</span>
-    </div>
-    <div v-else-if="last" class="result reveal" :class="last.win ? 'won' : 'lost'">
-      <span class="roll">{{ last.bet.roll.toFixed(2) }}</span>
-      <span>{{ last.win ? t("game.won", { amount: formatCents(last.bet.payout) }) : t("game.lost") }}</span>
+    <div ref="resultWrap" class="result-wrap">
+      <div v-if="rolling" class="result spinning">
+        <span class="die" aria-hidden="true">🎲</span>
+        <span class="roll">{{ displayRoll || "…" }}</span>
+      </div>
+      <div v-else-if="last" class="result reveal" :class="last.win ? 'won' : 'lost'">
+        <span class="roll">{{ last.bet.roll.toFixed(2) }}</span>
+        <span>{{ last.win ? t("game.won", { amount: formatCents(last.bet.payout) }) : t("game.lost") }}</span>
+      </div>
+      <div v-if="flashTier" :key="flashTier" class="win-flash" :class="flashTier" aria-hidden="true" />
+      <canvas ref="confettiCanvas" class="confetti-canvas" aria-hidden="true" />
     </div>
 
     <p v-if="error" class="error">{{ error }}</p>
@@ -166,6 +190,35 @@ label { display: flex; flex-direction: column; gap: 0.4rem; }
 .reveal { animation: pop 0.25s ease-out; }
 .won { background: #14532d; color: #86efac; }
 .lost { background: #450a0a; color: #fca5a5; }
+.result-wrap { position: relative; }
+.confetti-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+.win-flash {
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  pointer-events: none;
+  background: radial-gradient(circle, #86efac 0%, transparent 70%);
+  animation: flash-win 0.6s ease-out forwards;
+}
+.win-flash.big {
+  background: radial-gradient(circle, #fde68a 0%, #86efac 35%, transparent 75%);
+  animation: flash-big 1s ease-out forwards;
+}
+@keyframes flash-win {
+  0% { opacity: 0.55; }
+  100% { opacity: 0; }
+}
+@keyframes flash-big {
+  0% { opacity: 0.75; transform: scale(1.15); }
+  100% { opacity: 0; transform: scale(1.4); }
+}
 @keyframes tumble {
   0% { transform: rotate(0deg) translateY(0); }
   25% { transform: rotate(90deg) translateY(-4px); }
@@ -180,6 +233,7 @@ label { display: flex; flex-direction: column; gap: 0.4rem; }
 @media (prefers-reduced-motion: reduce) {
   .spinning .die { animation: none; }
   .reveal { animation: none; }
+  .win-flash { animation: none; opacity: 0; }
 }
 .error { color: #fca5a5; }
 .deposits { display: flex; gap: 0.75rem; }
