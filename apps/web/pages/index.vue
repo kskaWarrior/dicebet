@@ -107,7 +107,7 @@ async function deposit(amountCents: number) {
     </div>
     <p class="hint">{{ t("game.rollUnder", { target, mult: multiplier.toFixed(4) }) }}</p>
 
-    <DiceGauge :target="target" :value="gaugeValue" :state="gaugeState" />
+    <DiceOdometer :target="target" :value="gaugeValue" :state="gaugeState" />
 
     <label>
       {{ t("game.winChance", { pct: target }) }}
