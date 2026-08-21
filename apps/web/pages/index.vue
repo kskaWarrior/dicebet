@@ -18,9 +18,15 @@ const displayRoll = ref("");
 const last = ref<BetResponse | null>(null);
 const error = ref("");
 const depositBusy = ref(false);
+const gaugeValue = ref<number | null>(null);
 
 const multiplier = computed(() => 99 / target.value);
 const potentialWin = computed(() => Math.floor(stakeDollars.value * 100 * multiplier.value));
+const gaugeState = computed(() => {
+  if (rolling.value) return "rolling";
+  if (last.value) return last.value.win ? "won" : "lost";
+  return "idle";
+});
 
 onMounted(refreshWallet);
 
@@ -39,6 +45,7 @@ async function roll() {
   rolling.value = true;
   error.value = "";
   last.value = null;
+  gaugeValue.value = null;
 
   // Skip the suspense for users who prefer reduced motion
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -48,7 +55,9 @@ async function roll() {
   const ticker = reducedMotion
     ? 0
     : window.setInterval(() => {
-        displayRoll.value = (Math.random() * 100).toFixed(2);
+        const n = Math.random() * 100;
+        displayRoll.value = n.toFixed(2);
+        gaugeValue.value = n;
       }, 70);
   const started = performance.now();
 
@@ -61,6 +70,7 @@ async function roll() {
     await sleep(Math.max(0, spinMs - (performance.now() - started)));
     last.value = res;
     balance.value = res.balance;
+    gaugeValue.value = res.bet.roll;
     if (res.win) playWin();
     else playLose();
   } catch (e: any) {
@@ -96,6 +106,8 @@ async function deposit(amountCents: number) {
       </button>
     </div>
     <p class="hint">{{ t("game.rollUnder", { target, mult: multiplier.toFixed(4) }) }}</p>
+
+    <DiceGauge :target="target" :value="gaugeValue" :state="gaugeState" />
 
     <label>
       {{ t("game.winChance", { pct: target }) }}
