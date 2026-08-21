@@ -38,7 +38,7 @@ const digits = computed(() => {
   align-items: center;
   justify-content: center;
   gap: 2px;
-  padding: 0.6rem 0.8rem;
+  padding: 0.25rem 0.8rem;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -57,8 +57,8 @@ const digits = computed(() => {
   border-color: #fca5a5;
 }
 .reel {
-  height: 1.9rem;
-  width: 1.15rem;
+  height: 3.4rem;
+  width: 1.3rem;
   overflow: hidden;
 }
 .strip {
@@ -67,15 +67,15 @@ const digits = computed(() => {
   transition: transform 0.45s cubic-bezier(0.15, 0.85, 0.25, 1);
 }
 .strip span {
-  height: 1.9rem;
-  line-height: 1.9rem;
+  height: 3.4rem;
+  line-height: 3.4rem;
   text-align: center;
-  font-size: 1.5rem;
+  font-size: 1.8rem;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
 .sep {
-  font-size: 1.5rem;
+  font-size: 1.8rem;
   font-weight: 800;
   margin: 0 0.1rem;
 }

@@ -21,7 +21,9 @@ const error = ref("");
 const depositBusy = ref(false);
 const gaugeValue = ref<number | null>(null);
 const resultWrap = ref<HTMLElement | null>(null);
+const gaugeWrap = ref<HTMLElement | null>(null);
 const confettiCanvas = ref<HTMLCanvasElement | null>(null);
+const gaugeConfettiCanvas = ref<HTMLCanvasElement | null>(null);
 const flashTier = ref<"win" | "big" | null>(null);
 
 // Checked once: consistent with the reduced-motion check already made per-roll below.
@@ -48,6 +50,15 @@ async function refreshWallet() {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** Size a confetti canvas from its own (padded) box and fire a burst into it. */
+function fireConfetti(canvas: HTMLCanvasElement | null, tier: "win" | "big") {
+  if (!canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width;
+  canvas.height = rect.height;
+  burstConfetti(canvas, tier);
+}
+
 async function roll() {
   rolling.value = true;
   error.value = "";
@@ -55,6 +66,7 @@ async function roll() {
   gaugeValue.value = null;
   flashTier.value = null;
   if (confettiCanvas.value) clearConfetti(confettiCanvas.value);
+  if (gaugeConfettiCanvas.value) clearConfetti(gaugeConfettiCanvas.value);
 
   // Skip the suspense for users who prefer reduced motion
   const spinMs = reducedMotion ? 0 : 1400;
@@ -84,11 +96,9 @@ async function roll() {
       playWin(tier);
       if (!reducedMotion) {
         flashTier.value = tier;
-        if (confettiCanvas.value && resultWrap.value) {
-          confettiCanvas.value.width = resultWrap.value.clientWidth;
-          confettiCanvas.value.height = resultWrap.value.clientHeight;
-          burstConfetti(confettiCanvas.value, tier);
-        }
+        await nextTick();
+        fireConfetti(confettiCanvas.value, tier);
+        fireConfetti(gaugeConfettiCanvas.value, tier);
       }
     } else {
       playLose();
@@ -127,7 +137,11 @@ async function deposit(amountCents: number) {
     </div>
     <p class="hint">{{ t("game.rollUnder", { target, mult: multiplier.toFixed(4) }) }}</p>
 
-    <DiceOdometer :target="target" :value="gaugeValue" :state="gaugeState" />
+    <div ref="gaugeWrap" class="gauge-wrap">
+      <DiceOdometer :target="target" :value="gaugeValue" :state="gaugeState" />
+      <div v-if="flashTier" :key="flashTier" class="win-flash" :class="flashTier" aria-hidden="true" />
+      <canvas ref="gaugeConfettiCanvas" class="confetti-canvas" aria-hidden="true" />
+    </div>
 
     <label>
       {{ t("game.winChance", { pct: target }) }}
@@ -190,19 +204,16 @@ label { display: flex; flex-direction: column; gap: 0.4rem; }
 .reveal { animation: pop 0.25s ease-out; }
 .won { background: #14532d; color: #86efac; }
 .lost { background: #450a0a; color: #fca5a5; }
-.result-wrap { position: relative; }
+.result-wrap, .gauge-wrap { position: relative; }
 .confetti-canvas {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  inset: -56px -24px;
   pointer-events: none;
-  overflow: visible;
 }
 .win-flash {
   position: absolute;
-  inset: 0;
-  border-radius: 12px;
+  inset: -56px -24px;
+  border-radius: 16px;
   pointer-events: none;
   background: radial-gradient(circle, #86efac 0%, transparent 70%);
   animation: flash-win 0.6s ease-out forwards;
