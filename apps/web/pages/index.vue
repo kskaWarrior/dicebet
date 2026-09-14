@@ -10,6 +10,7 @@ const api = useApi();
 const balance = useBalance();
 const { t } = useI18n();
 const { playShake, playWin, playLose, muted } = useDiceAudio();
+const { burst: burstConfetti, clear: clearConfetti } = useConfetti();
 
 const target = ref(50);
 const stakeDollars = ref(1);
@@ -18,9 +19,23 @@ const displayRoll = ref("");
 const last = ref<BetResponse | null>(null);
 const error = ref("");
 const depositBusy = ref(false);
+const gaugeValue = ref<number | null>(null);
+const resultWrap = ref<HTMLElement | null>(null);
+const gaugeWrap = ref<HTMLElement | null>(null);
+const confettiCanvas = ref<HTMLCanvasElement | null>(null);
+const gaugeConfettiCanvas = ref<HTMLCanvasElement | null>(null);
+const flashTier = ref<"win" | "big" | null>(null);
+
+// Checked once: consistent with the reduced-motion check already made per-roll below.
+const reducedMotion = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const multiplier = computed(() => 99 / target.value);
 const potentialWin = computed(() => Math.floor(stakeDollars.value * 100 * multiplier.value));
+const gaugeState = computed(() => {
+  if (rolling.value) return "rolling";
+  if (last.value) return last.value.win ? "won" : "lost";
+  return "idle";
+});
 
 onMounted(refreshWallet);
 
@@ -35,20 +50,34 @@ async function refreshWallet() {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** Size a confetti canvas from its own (padded) box and fire a burst into it. */
+function fireConfetti(canvas: HTMLCanvasElement | null, tier: "win" | "big") {
+  if (!canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width;
+  canvas.height = rect.height;
+  burstConfetti(canvas, tier);
+}
+
 async function roll() {
   rolling.value = true;
   error.value = "";
   last.value = null;
+  gaugeValue.value = null;
+  flashTier.value = null;
+  if (confettiCanvas.value) clearConfetti(confettiCanvas.value);
+  if (gaugeConfettiCanvas.value) clearConfetti(gaugeConfettiCanvas.value);
 
   // Skip the suspense for users who prefer reduced motion
-  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const spinMs = reducedMotion ? 0 : 1400;
 
   playShake(spinMs);
   const ticker = reducedMotion
     ? 0
     : window.setInterval(() => {
-        displayRoll.value = (Math.random() * 100).toFixed(2);
+        const n = Math.random() * 100;
+        displayRoll.value = n.toFixed(2);
+        gaugeValue.value = n;
       }, 70);
   const started = performance.now();
 
@@ -61,8 +90,19 @@ async function roll() {
     await sleep(Math.max(0, spinMs - (performance.now() - started)));
     last.value = res;
     balance.value = res.balance;
-    if (res.win) playWin();
-    else playLose();
+    gaugeValue.value = res.bet.roll;
+    if (res.win) {
+      const tier: "win" | "big" = res.multiplier >= 2 ? "big" : "win";
+      playWin(tier);
+      if (!reducedMotion) {
+        flashTier.value = tier;
+        await nextTick();
+        fireConfetti(confettiCanvas.value, tier);
+        fireConfetti(gaugeConfettiCanvas.value, tier);
+      }
+    } else {
+      playLose();
+    }
   } catch (e: any) {
     error.value =
       e?.data?.error === "INSUFFICIENT_FUNDS" ? t("game.errInsufficient") : t("game.errFailed");
@@ -97,6 +137,12 @@ async function deposit(amountCents: number) {
     </div>
     <p class="hint">{{ t("game.rollUnder", { target, mult: multiplier.toFixed(4) }) }}</p>
 
+    <div ref="gaugeWrap" class="gauge-wrap">
+      <DiceOdometer :target="target" :value="gaugeValue" :state="gaugeState" />
+      <div v-if="flashTier" :key="flashTier" class="win-flash" :class="flashTier" aria-hidden="true" />
+      <canvas ref="gaugeConfettiCanvas" class="confetti-canvas" aria-hidden="true" />
+    </div>
+
     <label>
       {{ t("game.winChance", { pct: target }) }}
       <input v-model.number="target" type="range" min="1" max="98" step="1" :disabled="rolling" />
@@ -111,13 +157,17 @@ async function deposit(amountCents: number) {
 
     <button :disabled="rolling" @click="roll">{{ rolling ? t("game.rolling") : t("game.roll") }}</button>
 
-    <div v-if="rolling" class="result spinning">
-      <span class="die" aria-hidden="true">🎲</span>
-      <span class="roll">{{ displayRoll || "…" }}</span>
-    </div>
-    <div v-else-if="last" class="result reveal" :class="last.win ? 'won' : 'lost'">
-      <span class="roll">{{ last.bet.roll.toFixed(2) }}</span>
-      <span>{{ last.win ? t("game.won", { amount: formatCents(last.bet.payout) }) : t("game.lost") }}</span>
+    <div ref="resultWrap" class="result-wrap">
+      <div v-if="rolling" class="result spinning">
+        <span class="die" aria-hidden="true">🎲</span>
+        <span class="roll">{{ displayRoll || "…" }}</span>
+      </div>
+      <div v-else-if="last" class="result reveal" :class="last.win ? 'won' : 'lost'">
+        <span class="roll">{{ last.bet.roll.toFixed(2) }}</span>
+        <span>{{ last.win ? t("game.won", { amount: formatCents(last.bet.payout) }) : t("game.lost") }}</span>
+      </div>
+      <div v-if="flashTier" :key="flashTier" class="win-flash" :class="flashTier" aria-hidden="true" />
+      <canvas ref="confettiCanvas" class="confetti-canvas" aria-hidden="true" />
     </div>
 
     <p v-if="error" class="error">{{ error }}</p>
@@ -154,6 +204,32 @@ label { display: flex; flex-direction: column; gap: 0.4rem; }
 .reveal { animation: pop 0.25s ease-out; }
 .won { background: #14532d; color: #86efac; }
 .lost { background: #450a0a; color: #fca5a5; }
+.result-wrap, .gauge-wrap { position: relative; }
+.confetti-canvas {
+  position: absolute;
+  inset: -56px -24px;
+  pointer-events: none;
+}
+.win-flash {
+  position: absolute;
+  inset: -56px -24px;
+  border-radius: 16px;
+  pointer-events: none;
+  background: radial-gradient(circle, #86efac 0%, transparent 70%);
+  animation: flash-win 0.6s ease-out forwards;
+}
+.win-flash.big {
+  background: radial-gradient(circle, #fde68a 0%, #86efac 35%, transparent 75%);
+  animation: flash-big 1s ease-out forwards;
+}
+@keyframes flash-win {
+  0% { opacity: 0.55; }
+  100% { opacity: 0; }
+}
+@keyframes flash-big {
+  0% { opacity: 0.75; transform: scale(1.15); }
+  100% { opacity: 0; transform: scale(1.4); }
+}
 @keyframes tumble {
   0% { transform: rotate(0deg) translateY(0); }
   25% { transform: rotate(90deg) translateY(-4px); }
@@ -168,6 +244,7 @@ label { display: flex; flex-direction: column; gap: 0.4rem; }
 @media (prefers-reduced-motion: reduce) {
   .spinning .die { animation: none; }
   .reveal { animation: none; }
+  .win-flash { animation: none; opacity: 0; }
 }
 .error { color: #fca5a5; }
 .deposits { display: flex; gap: 0.75rem; }

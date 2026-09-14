@@ -126,12 +126,44 @@ export function useDiceAudio() {
     tableKnock(ac, start + throwAt);
   }
 
-  /** Two ascending chime notes. */
-  function playWin() {
+  /** A single bright coin-clink: a short high-passed noise tick. */
+  function coinClink(ac: AudioContext, time: number) {
+    const src = ac.createBufferSource();
+    src.buffer = getNoiseBuffer(ac);
+    src.playbackRate.value = 1.8 + Math.random() * 0.6;
+
+    const filter = ac.createBiquadFilter();
+    filter.type = "highpass";
+    filter.frequency.value = 4500;
+
+    const gain = ac.createGain();
+    gain.gain.setValueAtTime(0.09, time);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.05);
+
+    src.connect(filter).connect(gain).connect(ac.destination);
+    src.start(time, Math.random() * 0.4, 0.06);
+  }
+
+  /**
+   * Two ascending chime notes for every win. `tier` "big" (multiplier >= 2,
+   * i.e. roughly the riskier half of targets) layers a coin-clink cascade
+   * underneath and a louder, longer closing note for extra weight.
+   */
+  function playWin(tier: "win" | "big" = "win") {
     if (muted.value) return;
     const now = audioCtx().currentTime;
     blip(now, 523.25, 0.18, "sine", 0.12); // C5
-    blip(now + 0.12, 783.99, 0.35, "sine", 0.12); // G5
+
+    if (tier === "big") {
+      blip(now + 0.12, 783.99, 0.5, "sine", 0.16); // G5, louder/longer
+      blip(now + 0.16, 1046.5, 0.4, "sine", 0.1); // C6
+      const clinks = 4;
+      for (let i = 0; i < clinks; i++) {
+        coinClink(audioCtx(), now + 0.05 + i * 0.07 + Math.random() * 0.02);
+      }
+    } else {
+      blip(now + 0.12, 783.99, 0.35, "sine", 0.12); // G5
+    }
   }
 
   /** A single low thud. */
