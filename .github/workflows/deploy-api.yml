@@ -1,11 +1,11 @@
 name: API — test & deploy to Cloud Run
 
+# Desativado como gatilho automático em 2026-09-14 (Fase M-A, replicada do
+# roletafly — ADR-0001): o ambiente cloud (Cloud Run / Worker / Supabase DiceBet)
+# deixa de existir até a migração para a plataforma. Só roda por
+# workflow_dispatch, e vai falhar até a infra voltar (e até os secrets/env vars
+# do deploy — hoje ainda SUPABASE_* — serem trocados por DATABASE_URL/AUTH_*).
 on:
-  push:
-    branches: [main]
-    paths: ["apps/api/**", ".github/workflows/deploy-api.yml"]
-  pull_request:
-    paths: ["apps/api/**"]
   workflow_dispatch:
 
 env:
@@ -15,23 +15,12 @@ env:
   ARTIFACT_REPO: dicebet # Artifact Registry docker repo name
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/api
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - run: npm install
-      - run: npm run typecheck
-      - run: npm test
+  ci:
+    uses: ./.github/workflows/ci.yml
 
   deploy:
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-    needs: test
+    if: github.event_name == 'workflow_dispatch'
+    needs: ci
     runs-on: ubuntu-latest
     permissions:
       contents: read

@@ -1,0 +1,54 @@
+name: ci
+# Typecheck, unitários da API e integração contra um Postgres 17 puro (sem CLI
+# Supabase). Chamado por deploy-api.yml antes do deploy.
+
+on:
+  workflow_call:
+  push:
+    branches-ignore: [main]
+  pull_request:
+
+# Nenhum job aqui toca infra: leitura do repo basta.
+permissions:
+  contents: read
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm install
+      - run: npm run typecheck
+
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm install
+      - run: npm test
+
+  integration:
+    runs-on: ubuntu-latest
+    # Postgres puro como service container; as migrations vêm de db/migrate.mjs.
+    # O role `dicebet_api` que os testes usam é criado pelo próprio migrate.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dicebet
+        ports: ["52322:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d dicebet"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm install
+      - run: npm run test:integration -w apps/api
