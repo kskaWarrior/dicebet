@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const supabase = useSupabase();
+const auth = useAuth();
 const { t } = useI18n();
 const email = ref("");
 const password = ref("");
@@ -13,8 +13,8 @@ async function submit() {
   const creds = { email: email.value, password: password.value };
   const { error: err } =
     mode.value === "signin"
-      ? await supabase.auth.signInWithPassword(creds)
-      : await supabase.auth.signUp(creds);
+      ? await auth.signInWithPassword(creds)
+      : await auth.signUp(creds);
   busy.value = false;
   if (err) {
     error.value = err.message;
