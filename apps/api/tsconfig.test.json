@@ -1,0 +1,9 @@
+{
+  // O tsconfig de build tem `include: ["src"]` e `rootDir: "src"` — necessário para o
+  // `dist/`, mas deixaria todo o `tests/` sem checagem de tipo. Este config existe só
+  // para o `typecheck`.
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "rootDir": ".", "noEmit": true },
+  "include": ["src", "tests"],
+  "exclude": []
+}

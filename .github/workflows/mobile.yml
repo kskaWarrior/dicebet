@@ -1,9 +1,10 @@
 name: Mobile — Android (Test Lab + Distribution) & iOS (CocoaPods)
 
+# Desativado como gatilho automático em 2026-09-14 (Fase M-A, ADR-0001): o build
+# mobile embute a URL da API na cloud e do Supabase, que deixam de existir. Só roda
+# por workflow_dispatch, e vai falhar até a infra voltar (as vars SUPABASE_* abaixo
+# precisam virar API_BASE + AUTH_URL quando isso acontecer).
 on:
-  push:
-    branches: [main]
-    paths: ["apps/web/**", ".github/workflows/mobile.yml"]
   workflow_dispatch:
 
 env:
@@ -93,7 +94,7 @@ jobs:
       - run: npm install
 
       # Same public config as the Android job, so a future signed/distributed
-      # iOS build doesn't ship with an empty supabaseUrl.
+      # iOS build doesn't ship with an empty authUrl.
       - run: npm run generate -w apps/web
         env:
           NUXT_PUBLIC_API_BASE: ${{ vars.API_BASE }}

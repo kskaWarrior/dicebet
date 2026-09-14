@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const supabase = useSupabase();
+const auth = useAuth();
 const balance = useBalance();
 const loggedIn = ref(false);
 const { t, locale, initLocale } = useI18n();
@@ -11,16 +11,16 @@ onMounted(async () => {
   initLocale();
   initTheme();
   initCrashReporting();
-  const { data } = await supabase.auth.getSession();
+  const { data } = await auth.getSession();
   loggedIn.value = !!data.session;
-  supabase.auth.onAuthStateChange((_event, session) => {
+  auth.onAuthStateChange((_event, session) => {
     loggedIn.value = !!session;
     if (!session) balance.value = null;
   });
 });
 
 async function signOut() {
-  await supabase.auth.signOut();
+  await auth.signOut();
   navigateTo("/login");
 }
 </script>

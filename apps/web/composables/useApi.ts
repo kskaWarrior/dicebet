@@ -1,10 +1,10 @@
-/** $fetch against the Cloud Run API with the Supabase access token attached. */
+/** $fetch contra a API com o access token do GoTrue anexado. */
 export function useApi() {
   const config = useRuntimeConfig();
-  const supabase = useSupabase();
+  const auth = useAuth();
 
   return async <T>(path: string, options: Parameters<typeof $fetch>[1] = {}): Promise<T> => {
-    const { data } = await supabase.auth.getSession();
+    const { data } = await auth.getSession();
     const token = data.session?.access_token;
     if (!token) {
       navigateTo("/login");
