@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { supabase } from "./supabase.js";
+import { db } from "./db.js";
 import { generateServerSeed, hashServerSeed } from "./fair.js";
 
 export interface SeedRow {
@@ -13,59 +13,42 @@ export interface SeedRow {
   revealed_at: string | null;
 }
 
-export async function getOrCreateActiveSeed(userId: string): Promise<SeedRow> {
-  const { data } = await supabase
-    .from("user_seeds")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("active", true)
-    .maybeSingle();
-  if (data) return data as SeedRow;
-
+async function insertSeed(userId: string, clientSeed: string): Promise<SeedRow> {
   const serverSeed = generateServerSeed();
-  const { data: created, error } = await supabase
-    .from("user_seeds")
-    .insert({
-      user_id: userId,
-      server_seed: serverSeed,
-      server_seed_hash: hashServerSeed(serverSeed),
-      client_seed: randomBytes(8).toString("hex"),
-    })
-    .select("*")
-    .single();
-  if (error) throw error;
-  return created as SeedRow;
+  const { rows } = await db.query<SeedRow>(
+    `insert into public.user_seeds (user_id, server_seed, server_seed_hash, client_seed)
+     values ($1, $2, $3, $4) returning *`,
+    [userId, serverSeed, hashServerSeed(serverSeed), clientSeed],
+  );
+  return rows[0]!;
 }
 
-/** Deactivates + reveals the current seed and creates a fresh one. */
+export async function getOrCreateActiveSeed(userId: string): Promise<SeedRow> {
+  const { rows } = await db.query<SeedRow>(
+    "select * from public.user_seeds where user_id = $1 and active limit 1",
+    [userId],
+  );
+  if (rows[0]) return rows[0];
+  return insertSeed(userId, randomBytes(8).toString("hex"));
+}
+
+/** Desativa + revela o seed atual e cria um novo. */
 export async function rotateSeed(userId: string, clientSeed?: string) {
   const current = await getOrCreateActiveSeed(userId);
-  const { error } = await supabase
-    .from("user_seeds")
-    .update({ active: false, revealed_at: new Date().toISOString() })
-    .eq("id", current.id);
-  if (error) throw error;
-
-  const serverSeed = generateServerSeed();
-  const { data: next, error: insertError } = await supabase
-    .from("user_seeds")
-    .insert({
-      user_id: userId,
-      server_seed: serverSeed,
-      server_seed_hash: hashServerSeed(serverSeed),
-      client_seed: clientSeed?.slice(0, 64) || randomBytes(8).toString("hex"),
-    })
-    .select("*")
-    .single();
-  if (insertError) throw insertError;
-
-  return { revealed: current, next: next as SeedRow };
+  await db.query("update public.user_seeds set active = false, revealed_at = now() where id = $1", [
+    current.id,
+  ]);
+  const next = await insertSeed(userId, clientSeed?.slice(0, 64) || randomBytes(8).toString("hex"));
+  return { revealed: current, next };
 }
 
-/** Claims the next nonce atomically (SQL: nonce = nonce + 1 returning old). */
+/** Reivindica o próximo nonce atomicamente (SQL: nonce = nonce + 1 returning old). */
 export async function claimNonce(seedId: string): Promise<number> {
-  const { data, error } = await supabase.rpc("use_next_nonce", { p_seed_id: seedId });
-  if (error) throw error;
-  if (data === null) throw new Error("SEED_NOT_ACTIVE");
-  return data as number;
+  const { rows } = await db.query<{ nonce: number | null }>(
+    "select public.use_next_nonce($1) as nonce",
+    [seedId],
+  );
+  const nonce = rows[0]?.nonce ?? null;
+  if (nonce === null) throw new Error("SEED_NOT_ACTIVE");
+  return nonce;
 }
