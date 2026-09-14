@@ -1,23 +1,28 @@
--- DiceBet initial schema: profiles, wallet ledger, bets, provably-fair seeds.
--- All money values are integer cents. The wallets.balance is derived state:
--- it must always equal sum(transactions.amount) for that user, enforced by
--- doing every balance change inside place_bet/apply_deposit.
+-- Schema inicial do DiceBet: profiles, ledger da carteira, apostas, seeds provably-fair.
+-- Todo valor monetário é inteiro em centavos. `wallets.balance` é estado derivado:
+-- deve sempre ser igual a sum(transactions.amount) do usuário, garantido por toda
+-- mudança de saldo acontecer dentro de place_bet/apply_deposit.
+--
+-- Postgres puro (ADR-0001 deste repo, que adota os ADRs 0010–0012 do roletafly):
+-- não há `auth.users` — a identidade é o `sub` do token (GoTrue) e o jogador nasce
+-- em `ensure_player`, chamado pela API na primeira requisição autenticada. Sem RLS
+-- por jogador: só a API lê as tabelas, com o role `dicebet_api` (ver db/migrate.mjs).
 
 create table if not exists public.profiles (
-  id uuid primary key references auth.users (id) on delete cascade,
+  id uuid primary key,
   username text unique,
   created_at timestamptz not null default now()
 );
 
 create table if not exists public.wallets (
-  user_id uuid primary key references auth.users (id) on delete cascade,
+  user_id uuid primary key,
   balance bigint not null default 0 check (balance >= 0),
   updated_at timestamptz not null default now()
 );
 
 create table if not exists public.transactions (
   id bigint generated always as identity primary key,
-  user_id uuid not null references auth.users (id) on delete cascade,
+  user_id uuid not null,
   type text not null check (type in ('deposit', 'bet', 'payout')),
   -- signed amount in cents: bets are negative, deposits/payouts positive
   amount bigint not null,
@@ -31,7 +36,7 @@ create index if not exists transactions_user_idx on public.transactions (user_id
 
 create table if not exists public.bets (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users (id) on delete cascade,
+  user_id uuid not null,
   game text not null default 'dice',
   stake bigint not null check (stake > 0),
   -- dice: win if roll < target; target in (0, 99), two decimals
@@ -46,11 +51,11 @@ create table if not exists public.bets (
 
 create index if not exists bets_user_idx on public.bets (user_id, created_at desc);
 
--- Provably-fair seed pairs. Managed exclusively by the API (service role):
+-- Provably-fair seed pairs. Managed exclusively by the API (role dicebet_api):
 -- the plain server_seed must never be readable by clients until revealed.
 create table if not exists public.user_seeds (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users (id) on delete cascade,
+  user_id uuid not null,
   server_seed text not null,
   server_seed_hash text not null,
   client_seed text not null,
@@ -63,63 +68,41 @@ create table if not exists public.user_seeds (
 create unique index if not exists user_seeds_one_active_idx on public.user_seeds (user_id) where active;
 
 -- ---------------------------------------------------------------------------
--- Row Level Security: clients may read their own rows. All writes go through
--- the API using the service role key (which bypasses RLS), so no insert/update
--- policies are defined.
+-- Bootstrap do jogador: profile + carteira + um pequeno saldo de boas-vindas
+-- para a demo ser jogável antes de qualquer depósito (test-mode). Idempotente;
+-- substitui o trigger `handle_new_user` em `auth.users`.
 -- ---------------------------------------------------------------------------
-alter table public.profiles enable row level security;
-alter table public.wallets enable row level security;
-alter table public.transactions enable row level security;
-alter table public.bets enable row level security;
-alter table public.user_seeds enable row level security;
-
-drop policy if exists "read own profile" on public.profiles;
-create policy "read own profile" on public.profiles
-  for select using (auth.uid() = id);
-drop policy if exists "update own profile" on public.profiles;
-create policy "update own profile" on public.profiles
-  for update using (auth.uid() = id);
-drop policy if exists "read own wallet" on public.wallets;
-create policy "read own wallet" on public.wallets
-  for select using (auth.uid() = user_id);
-drop policy if exists "read own transactions" on public.transactions;
-create policy "read own transactions" on public.transactions
-  for select using (auth.uid() = user_id);
-drop policy if exists "read own bets" on public.bets;
-create policy "read own bets" on public.bets
-  for select using (auth.uid() = user_id);
--- user_seeds intentionally has no select policy: unrevealed server seeds
--- must stay secret. The API exposes the hash / revealed seeds explicitly.
-
--- ---------------------------------------------------------------------------
--- New user bootstrap: profile + wallet + a small welcome balance so the demo
--- is playable before any (test-mode) deposit.
--- ---------------------------------------------------------------------------
-create or replace function public.handle_new_user()
-returns trigger
+create or replace function public.ensure_player(p_user_id uuid, p_username text)
+returns void
 language plpgsql
 security definer set search_path = public
 as $$
 declare
-  welcome constant bigint := 1000; -- $10.00 in demo cents
+  welcome constant bigint := 1000; -- $10.00 em centavos de demo
 begin
-  insert into public.profiles (id, username)
-  values (new.id, split_part(new.email, '@', 1));
+  -- Duas instâncias da API podem receber a 1ª requisição do mesmo jogador ao
+  -- mesmo tempo: o lock serializa por jogador, e a segunda vê o perfil pronto.
+  perform pg_advisory_xact_lock(hashtext(p_user_id::text));
+  if exists (select 1 from public.profiles where id = p_user_id) then
+    return;
+  end if;
+
+  -- Username colidindo com OUTRO jogador ganha sufixo do id (unique_violation
+  -- só pode vir de username: o id já foi checado sob o lock).
+  begin
+    insert into public.profiles (id, username) values (p_user_id, p_username);
+  exception when unique_violation then
+    insert into public.profiles (id, username)
+    values (p_user_id, p_username || '-' || left(p_user_id::text, 8));
+  end;
 
   insert into public.wallets (user_id, balance)
-  values (new.id, welcome);
+  values (p_user_id, welcome);
 
   insert into public.transactions (user_id, type, amount, balance_after, ref_id)
-  values (new.id, 'deposit', welcome, welcome, 'welcome:' || new.id);
-
-  return new;
+  values (p_user_id, 'deposit', welcome, welcome, 'welcome:' || p_user_id);
 end;
 $$;
-
-drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute function public.handle_new_user();
 
 -- ---------------------------------------------------------------------------
 -- place_bet: the single atomic entry point for gameplay money movement.
@@ -187,7 +170,7 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
--- apply_deposit: idempotent on ref_id so Stripe webhook retries are safe.
+-- apply_deposit: idempotente em ref_id, então retentativas do webhook Stripe são seguras.
 -- ---------------------------------------------------------------------------
 create or replace function public.apply_deposit(
   p_user_id uuid,
