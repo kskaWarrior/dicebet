@@ -1,11 +1,11 @@
 name: ci
 # Typecheck, unitários da API e integração contra um Postgres 17 puro (sem CLI
-# Supabase). Chamado por deploy-api.yml antes do deploy.
+# Supabase). Roda em todo push e PR — inclusive `main`, já que o deploy (só por
+# dispatch desde a Fase M-A) não a chama mais automaticamente.
 
 on:
   workflow_call:
   push:
-    branches-ignore: [main]
   pull_request:
 
 # Nenhum job aqui toca infra: leitura do repo basta.
