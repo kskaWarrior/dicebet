@@ -1,0 +1,106 @@
+# Stack local completo, sem Supabase (Fases M-A/M-B, replicadas do roletafly —
+# ADR-0001 deste repo):
+#
+#   postgres  Postgres 17 puro; db/local/init-postgres.sql cria o schema `auth`
+#             (do GoTrue) no primeiro boot.
+#   gotrue    Supabase Auth sozinho (e-mail+senha, autoconfirma, HS256).
+#   migrate   `node db/migrate.mjs` uma vez (schema + role `dicebet_api`); a api só sobe depois.
+#   api/web   mesmas imagens de antes; o web é `nuxt generate` servido por nginx.
+#
+#   scripts/local-up.sh
+#
+# O navegador alcança gotrue em 127.0.0.1:52321 e a api em localhost:${API_PORT:-8080};
+# os containers se alcançam pelo nome do serviço. Portas do host diferentes dos
+# jogos irmãos para os cinco rodarem juntos.
+services:
+  postgres:
+    image: postgres:17-alpine
+    ports: ["52322:5432"]
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: dicebet
+    volumes:
+      - ./db/local/init-postgres.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # -h 127.0.0.1: pelo socket unix o pg_isready responde já no servidor temporário do
+      # initdb, que cai em seguida — e o migrate conectaria no vazio.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d dicebet"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  gotrue:
+    image: supabase/auth:v2.197.0
+    ports: ["52321:9999"]
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: "9999"
+      API_EXTERNAL_URL: http://127.0.0.1:52321
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:supabase_auth_admin@postgres:5432/dicebet?search_path=auth
+      GOTRUE_SITE_URL: http://localhost:${WEB_PORT:-3000}
+      GOTRUE_URI_ALLOW_LIST: http://localhost:${WEB_PORT:-3000}
+      GOTRUE_JWT_SECRET: ${AUTH_JWT_SECRET:?veja .env.example}
+      GOTRUE_JWT_EXP: "3600"
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_MAILER_AUTOCONFIRM: "true"
+      GOTRUE_DISABLE_SIGNUP: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  migrate:
+    build: ./apps/api
+    command: ["node", "db/migrate.mjs"]
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/dicebet
+    volumes:
+      - ./db:/app/db:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build: ./apps/api
+    # API_PORT (.env) quando a 8080 já estiver ocupada na máquina.
+    ports: ["${API_PORT:-8080}:8080"]
+    environment:
+      DATABASE_URL: postgres://dicebet_api:dicebet_api@postgres:5432/dicebet
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:?veja .env.example}
+      AUTH_AUDIENCE: authenticated
+      CORS_ORIGINS: http://localhost:3000,http://localhost:${WEB_PORT:-3000},capacitor://localhost,http://localhost
+      CHECKOUT_RETURN_URL: http://localhost:${WEB_PORT:-3000}
+      # Stripe só em test mode; sem chaves reais o depósito falha, o resto do jogo não.
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-sk_test_placeholder}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-whsec_placeholder}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:8080/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # Embutidas no bundle em tempo de `nuxt generate` (ssr: false) — são
+        # as URLs vistas pelo NAVEGADOR, não pelos containers.
+        NUXT_PUBLIC_API_BASE: http://localhost:${API_PORT:-8080}
+        NUXT_PUBLIC_AUTH_URL: http://127.0.0.1:52321
+    # WEB_PORT (.env) quando a 3000 já estiver ocupada na máquina.
+    ports: ["${WEB_PORT:-3000}:80"]
+    depends_on:
+      api:
+        condition: service_healthy
+      gotrue:
+        condition: service_started
+
+volumes:
+  pgdata:
