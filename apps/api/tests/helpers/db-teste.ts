@@ -10,7 +10,8 @@ import pg from "pg";
 export const DATABASE_URL =
   process.env.DATABASE_URL ?? "postgres://postgres:postgres@127.0.0.1:52322/dicebet";
 export const API_DATABASE_URL =
-  process.env.API_DATABASE_URL ?? "postgres://dicebet_api:dicebet_api@127.0.0.1:52322/dicebet";
+  process.env.API_DATABASE_URL ??
+  `postgres://dicebet_api:${process.env.API_DB_PASSWORD ?? "dicebet_api"}@127.0.0.1:52322/dicebet`;
 
 pg.types.setTypeParser(20, (v) => Number(v));
 export const sql = new pg.Pool({ connectionString: DATABASE_URL, max: 5 });

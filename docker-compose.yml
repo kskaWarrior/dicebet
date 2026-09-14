@@ -57,6 +57,9 @@ services:
     command: ["node", "db/migrate.mjs"]
     environment:
       DATABASE_URL: postgres://postgres:postgres@postgres:5432/dicebet
+      # Uma dona da senha do role da API: o migrate cria o role com ela e a api
+      # conecta com ela — trocar API_DB_PASSWORD no .env troca nos dois.
+      API_DB_PASSWORD: ${API_DB_PASSWORD:-dicebet_api}
     volumes:
       - ./db:/app/db:ro
     depends_on:
@@ -68,7 +71,7 @@ services:
     # API_PORT (.env) quando a 8080 já estiver ocupada na máquina.
     ports: ["${API_PORT:-8080}:8080"]
     environment:
-      DATABASE_URL: postgres://dicebet_api:dicebet_api@postgres:5432/dicebet
+      DATABASE_URL: postgres://dicebet_api:${API_DB_PASSWORD:-dicebet_api}@postgres:5432/dicebet
       AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:?veja .env.example}
       AUTH_AUDIENCE: authenticated
       CORS_ORIGINS: http://localhost:3000,http://localhost:${WEB_PORT:-3000},capacitor://localhost,http://localhost
