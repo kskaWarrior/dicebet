@@ -1,12 +1,12 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../auth.js";
+import { db } from "../db.js";
 import { getOrCreateActiveSeed, rotateSeed } from "../seeds.js";
-import { supabase } from "../supabase.js";
 
 export const seeds = Router();
 
-// The current commitment: hash only — the server seed itself stays secret.
+// O compromisso atual: só o hash — o server seed em si continua secreto.
 seeds.get("/current", requireAuth, async (req, res) => {
   const seed = await getOrCreateActiveSeed(req.userId!);
   return res.json({
@@ -16,7 +16,7 @@ seeds.get("/current", requireAuth, async (req, res) => {
   });
 });
 
-// Rotating reveals the old server seed so past bets become verifiable.
+// Rotacionar revela o server seed antigo, tornando as apostas passadas verificáveis.
 seeds.post("/rotate", requireAuth, async (req, res) => {
   const body = z.object({ clientSeed: z.string().min(1).max(64).optional() }).safeParse(req.body);
   if (!body.success) return res.status(400).json({ error: "INVALID_CLIENT_SEED" });
@@ -38,14 +38,11 @@ seeds.post("/rotate", requireAuth, async (req, res) => {
 });
 
 seeds.get("/revealed", requireAuth, async (req, res) => {
-  const { data, error } = await supabase
-    .from("user_seeds")
-    .select("server_seed, server_seed_hash, client_seed, nonce, revealed_at")
-    .eq("user_id", req.userId!)
-    .eq("active", false)
-    .not("revealed_at", "is", null)
-    .order("revealed_at", { ascending: false })
-    .limit(20);
-  if (error) return res.status(500).json({ error: "SEEDS_FAILED" });
-  return res.json({ seeds: data });
+  const { rows } = await db.query(
+    `select server_seed, server_seed_hash, client_seed, nonce, revealed_at from public.user_seeds
+     where user_id = $1 and not active and revealed_at is not null
+     order by revealed_at desc limit 20`,
+    [req.userId!],
+  );
+  return res.json({ seeds: rows });
 });

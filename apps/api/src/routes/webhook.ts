@@ -1,13 +1,13 @@
 import { Router, raw } from "express";
 import Stripe from "stripe";
+import { db } from "../db.js";
 import { env } from "../env.js";
-import { supabase } from "../supabase.js";
 
 export const webhook = Router();
 
 const stripe = new Stripe(env.stripeSecretKey);
 
-// Mounted BEFORE express.json() — Stripe signature verification needs the raw body.
+// Montado ANTES do express.json() — a verificação de assinatura do Stripe precisa do corpo cru.
 webhook.post("/", raw({ type: "application/json" }), async (req, res) => {
   const signature = req.headers["stripe-signature"];
   if (typeof signature !== "string") return res.status(400).send("missing signature");
@@ -24,15 +24,12 @@ webhook.post("/", raw({ type: "application/json" }), async (req, res) => {
     const userId = session.metadata?.user_id;
     const amount = session.amount_total;
     if (userId && amount && amount > 0) {
-      // apply_deposit is idempotent on the session id, so Stripe retries are safe
-      const { error } = await supabase.rpc("apply_deposit", {
-        p_user_id: userId,
-        p_amount: amount,
-        p_ref: `stripe:${session.id}`,
-      });
-      if (error) {
+      // apply_deposit é idempotente no id da sessão, então retentativas do Stripe são seguras
+      try {
+        await db.query("select public.apply_deposit($1, $2, $3)", [userId, amount, `stripe:${session.id}`]);
+      } catch (error) {
         console.error("apply_deposit failed", error);
-        return res.status(500).send("deposit failed"); // Stripe will retry
+        return res.status(500).send("deposit failed"); // o Stripe vai retentar
       }
     }
   }
