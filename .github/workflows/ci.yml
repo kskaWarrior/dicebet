@@ -1,7 +1,11 @@
 name: ci
-# Typecheck, unitários da API e integração contra um Postgres 17 puro (sem CLI
-# Supabase). Roda em todo push e PR — inclusive `main`, já que o deploy (só por
-# dispatch desde a Fase M-A) não a chama mais automaticamente.
+# Typecheck, unitários da API e integração contra um Postgres 17 puro. Roda em todo
+# push e PR — inclusive `main`, já que o deploy (só por dispatch desde a Fase M-A) não
+# a chama mais automaticamente.
+#
+# Desde o rollout RGS (docs/adr/0002-carteira-de-rgs.md) a instalação precisa do GitHub
+# Packages: `@kskawarrior/rgs-core` é privado, e sem o segredo `GH_PACKAGES_TOKEN` (PAT
+# com `read:packages`, já configurado neste repo) os três jobs falham já no `npm install`.
 
 on:
   workflow_call:
@@ -18,8 +22,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22 }
+        with:
+          node-version: 22
+          registry-url: https://npm.pkg.github.com
+          scope: "@kskawarrior"
       - run: npm install
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
       - run: npm run typecheck
 
   unit:
@@ -27,28 +36,39 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22 }
+        with:
+          node-version: 22
+          registry-url: https://npm.pkg.github.com
+          scope: "@kskawarrior"
       - run: npm install
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
       - run: npm test
 
   integration:
     runs-on: ubuntu-latest
-    # Postgres puro como service container; as migrations vêm de db/migrate.mjs.
-    # O role `dicebet_api` que os testes usam é criado pelo próprio migrate.
+    # Postgres puro como service container, banco único `rgs` (rollout RGS): o
+    # `test:integration` aplica primeiro o schema `rgs` (migrations dentro do pacote
+    # @kskawarrior/rgs-core) e depois o `dicebet`; os roles vêm dos próprios migrates.
     services:
       postgres:
         image: postgres:17-alpine
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: dicebet
-        ports: ["52322:5432"]
+          POSTGRES_DB: rgs
+        ports: ["57332:5432"]
         options: >-
-          --health-cmd "pg_isready -U postgres -d dicebet"
+          --health-cmd "pg_isready -U postgres -d rgs"
           --health-interval 3s --health-timeout 3s --health-retries 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22 }
+        with:
+          node-version: 22
+          registry-url: https://npm.pkg.github.com
+          scope: "@kskawarrior"
       - run: npm install
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
       - run: npm run test:integration -w apps/api

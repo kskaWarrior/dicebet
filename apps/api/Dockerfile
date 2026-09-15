@@ -1,8 +1,14 @@
 # Build stage
 FROM node:22-slim AS build
 WORKDIR /app
-COPY package.json package-lock.json* ./
-RUN npm install
+COPY package.json ./
+# @kskawarrior/rgs-core vem do GitHub Packages (rollout RGS, docs/adr/0002-carteira-de-rgs.md).
+# O contexto de build é apps/api, que não enxerga o .npmrc da raiz, então o mapeamento de
+# escopo é declarado aqui; só o TOKEN entra como segredo do BuildKit (nunca como camada
+# da imagem) — o .npmrc de projeto, e não `npm config set`, porque o segredo monta sobre
+# /root/.npmrc.
+RUN echo '@kskawarrior:registry=https://npm.pkg.github.com' > .npmrc
+RUN --mount=type=secret,id=npmrc,target=/root/.npmrc npm install
 COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build && npm prune --omit=dev

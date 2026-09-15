@@ -8,7 +8,11 @@ WORKDIR /repo
 COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
-RUN npm ci
+# `npm ci` na raiz instala TODOS os workspaces, incluindo o @kskawarrior/rgs-core
+# privado do apps/api (rollout RGS, docs/adr/0002-carteira-de-rgs.md) — mesmo
+# segredo do apps/api/Dockerfile.
+RUN echo '@kskawarrior:registry=https://npm.pkg.github.com' > .npmrc
+RUN --mount=type=secret,id=npmrc,target=/root/.npmrc npm ci
 COPY apps/web apps/web
 # Embutidas no bundle (ssr: false).
 ARG NUXT_PUBLIC_API_BASE
