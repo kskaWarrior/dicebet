@@ -112,16 +112,16 @@ async function roll() {
   }
 }
 
-async function deposit(amountCents: number) {
+// Recarga do operador demo (rollout RGS): sem valor à escolha — a regra (só
+// perto de zero) é do operador, não do jogo (docs/adr/0002-carteira-de-rgs.md).
+async function refill() {
   depositBusy.value = true;
   try {
-    const res = await api<{ url: string }>("/deposits", {
-      method: "POST",
-      body: { amount: amountCents },
-    });
-    window.location.href = res.url;
-  } catch {
-    error.value = t("game.errCheckout");
+    const res = await api<{ balance: number }>("/wallet/refill", { method: "POST" });
+    balance.value = res.balance;
+  } catch (e: any) {
+    error.value = e?.data?.error === "REFILL_NOT_ALLOWED" ? t("game.errInsufficient") : t("game.errCheckout");
+  } finally {
     depositBusy.value = false;
   }
 }
@@ -176,9 +176,7 @@ async function deposit(amountCents: number) {
     <h2>{{ t("game.depositTitle") }}</h2>
     <p class="hint">{{ t("game.depositHint") }}</p>
     <div class="deposits">
-      <button :disabled="depositBusy" @click="deposit(5_00)">+$5</button>
-      <button :disabled="depositBusy" @click="deposit(20_00)">+$20</button>
-      <button :disabled="depositBusy" @click="deposit(100_00)">+$100</button>
+      <button :disabled="depositBusy" @click="refill">{{ t("game.depositTitle") }}</button>
     </div>
   </div>
 </template>

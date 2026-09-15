@@ -1,11 +1,12 @@
 # 🎲 DiceBet
 
-Demo de dados provably-fair. Moedas virtuais + Stripe **test mode** apenas — sem dinheiro real.
+Demo de dados provably-fair. Moedas virtuais de demonstração apenas — sem dinheiro real.
 
 **Web** e **mobile** (Capacitor) compartilham uma base Nuxt 3 e consomem a mesma API Express,
-que fala **Postgres direto** e verifica tokens do **GoTrue** (Supabase Auth sozinho). Desde
-2026-09-14 tudo roda 100% local ([ADR-0001](docs/adr/0001-local-total-pg-direto-gotrue.md));
-a cloud (Cloud Run / Worker / Supabase) está desligada até a migração para a plataforma RGS.
+que fala **Postgres direto** e verifica tokens do **GoTrue** — ambos agora o banco único e o
+GoTrue da **plataforma RGS** ([ADR-0002](docs/adr/0002-carteira-de-rgs.md)), que substituiu o
+Postgres/GoTrue próprios da Fase M-A/M-B ([ADR-0001](docs/adr/0001-local-total-pg-direto-gotrue.md)).
+A cloud (Cloud Run / Worker / Supabase) segue desligada.
 
 ```
 ┌─────────────────┐     ┌──────────────────┐
@@ -14,43 +15,52 @@ a cloud (Cloud Run / Worker / Supabase) está desligada até a migração para a
 └────────┬────────┘     └────────┬─────────┘
          │   Bearer JWT (GoTrue, HS256)
          ▼                       ▼
-      ┌──────────────────────────────┐      ┌─────────────┐
-      │ API Express                  │◄─────┤ Stripe      │
-      │ regras · ledger · seeds      │ hook │ (test mode) │
-      └──────────────┬───────────────┘      └─────────────┘
+      ┌──────────────────────────────┐
+      │ API Express                  │
+      │ regras do jogo · seeds       │
+      └──────────────┬───────────────┘
                      ▼ role dicebet_api (pg)
       ┌──────────────────────────────┐
-      │ Postgres 17                  │
-      │ wallets · transactions · RPCs│
+      │ Postgres da plataforma RGS   │
+      │ schema dicebet: profiles ·   │
+      │ bets · user_seeds · RPCs     │
+      │ schema rgs: carteira do      │
+      │ operador demo (saga)         │
       └──────────────────────────────┘
 ```
 
 ## Stack
 
-- `apps/api` — Express 5 + `pg` (`src/db.ts`), `jose` para o token (`src/auth.ts`: JWKS ou
-  HS256), Stripe. RPCs em `db/migrations/`.
+- `apps/api` — Express 5 + `pg`/`@kskawarrior/rgs-core` (`src/db.ts`), `jose` para o token
+  (`src/auth.ts`: JWKS ou HS256). RPCs em `db/migrations/`.
 - `apps/web` — Nuxt 3 `ssr: false`; `composables/useAuth.ts` é o `GoTrueClient`.
-- `db/migrate.mjs` — aplica as migrations e (re)concede os grants do role `dicebet_api`,
-  que não tem UPDATE em `wallets`/`transactions`: a invariante do ledger vale mesmo com bug
-  na API (provado por teste).
-- `docker-compose.yml` — postgres (52322), gotrue (52321), migrate, api (8080), web (3000).
+- `db/migrate.mjs` — aplica as migrations do jogo (schema `dicebet`) e (re)concede os
+  grants do role `dicebet_api`, que não escreve em `bets`/`profiles` por fora das RPCs
+  nem em `rgs.demo_wallets`/`rgs.ledger` por fora da saga/das funções `demo_*` (provado
+  por teste).
+- `docker-compose.yml` — só o jogo (migrate, api, web); Postgres/GoTrue vêm do compose do
+  repo `rgs` (`scripts/local-up.sh` sobe os dois).
 
 ## Por que é interessante
 
-- **Ledger append-only.** `wallets.balance` é sempre igual a `sum(transactions.amount)`. Toda movimentação passa por uma única função Postgres atômica (`place_bet` / `apply_deposit`) com lock de linha — sem lost updates, sem aposta pela metade. Depósitos são idempotentes no id da sessão Stripe, então retentativas do webhook são seguras.
+- **Carteira na plataforma.** O saldo do jogador vive em `rgs.demo_wallets` + `rgs.ledger` (append-only), movidos por uma saga (`criarExecutarRodadaNoJogo` do `@kskawarrior/rgs-core`): débito → `dicebet.settle_bet` (regra do jogo, guarda de replay) → crédito se houve prêmio, tudo numa transação com savepoint — sem lost updates, sem aposta pela metade, sem depender de bug-free na API.
 - **Provably fair.** O servidor se compromete com `sha256(serverSeed)` antes da aposta. Cada rolagem é `HMAC-SHA256(serverSeed, clientSeed:nonce)`. Rotacionar seeds revela o antigo; a página `/fairness` re-verifica as rolagens no cliente com Web Crypto.
 - **Uma API, dois clientes.** O Nuxt gera um SPA que serve tanto o nginx quanto o shell Capacitor; nada crítico do jogo roda no cliente.
 
 ## Rodar localmente
 
+Precisa do repo `rgs` clonado ao lado (`../rgs`) — é de lá que vêm o Postgres e o GoTrue
+compartilhados pelos jogos irmãos:
+
 ```bash
 npm install
-scripts/local-up.sh                       # gera .env (segredo aleatório) e sobe tudo
-# WEB_PORT=3002 API_PORT=8082 scripts/local-up.sh   se 3000/8080 estiverem ocupadas
+scripts/local-up.sh                       # sobe o rgs (se preciso), gera .env e sobe o jogo
+# RGS_DIR=../rgs WEB_PORT=3002 API_PORT=8082 scripts/local-up.sh   se o caminho ou as portas diferirem
 ```
 
 Abra `http://localhost:3000`, cadastre um e-mail qualquer (o GoTrue autoconfirma) e jogue:
-a primeira requisição autenticada cria a carteira com $10,00 de boas-vindas.
+a primeira requisição autenticada cria a carteira com $10,00 de boas-vindas (operador `demo`
+da plataforma).
 
 Para desenvolver a API ou o web fora do container, com o compose no ar:
 
@@ -61,25 +71,25 @@ npm run dev:api   # http://localhost:8080
 npm run dev:web   # http://localhost:3000
 ```
 
-Stripe local: `stripe listen --forward-to localhost:8080/stripe/webhook` e as chaves de test
-mode em `.env` (raiz, para o compose) ou `apps/api/.env`. Sem elas só o depósito não funciona.
-Cartão de teste: `4242 4242 4242 4242`.
-
 Testes: `npm test` (payout e fairness), `npm run typecheck`, e `npm run test:integration`
-contra o Postgres do compose (reaplica as migrations do zero: `requireAuth` com token HS256
-real, concorrência do bootstrap, grants do role, RPCs do jogo). `npm run db:migrate` aplica
-migrations novas sem reset.
+contra o Postgres do repo `rgs` (reaplica os schemas `rgs` e `dicebet` do zero:
+`requireAuth` com token HS256 real, concorrência do bootstrap, grants do role, RPCs do
+jogo, a saga da carteira — `débito → settle_bet → crédito`, replay, RLS por operador).
+`npm run db:migrate` aplica os dois schemas sem reset.
 
 ## Deploy (desativado)
 
 [deploy-api.yml](.github/workflows/deploy-api.yml) (Cloud Run) e
 [mobile.yml](.github/workflows/mobile.yml) (Firebase Test Lab / App Distribution) só rodam
 por `workflow_dispatch` e vão falhar até a infra voltar — ainda esperam secrets/vars
-`SUPABASE_*`. [ci.yml](.github/workflows/ci.yml) roda typecheck, unitários e integração
-(Postgres 17 como service) em todo push fora de `main` e em PRs. `wrangler.jsonc` fica para
-quando o Worker for recriado. O `CORS_ORIGINS` da API precisa incluir `capacitor://localhost`
-e `http://localhost` para o shell mobile.
+`SUPABASE_*`/`STRIPE_*` de antes do rollout RGS (pendência para quem religar a cloud).
+[ci.yml](.github/workflows/ci.yml) roda typecheck, unitários e integração (Postgres 17
+como service, autenticado no GitHub Packages para o `@kskawarrior/rgs-core` privado) em
+todo push fora de `main` e em PRs. `wrangler.jsonc` fica para quando o Worker for
+recriado. O `CORS_ORIGINS` da API precisa incluir `capacitor://localhost` e
+`http://localhost` para o shell mobile.
 
 ## Aviso
 
-Projeto demo/portfólio. Moeda virtual apenas; pagamentos só em Stripe test mode. Não é um produto de apostas.
+Projeto demo/portfólio. Moeda virtual de demonstração apenas — sem processador de
+pagamento, sem dinheiro real. Não é um produto de apostas.

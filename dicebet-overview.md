@@ -1,80 +1,89 @@
 # DiceBet — Project Overview
 
-A provably-fair dice betting demo. Virtual coins + Stripe **test mode** only — no real money changes hands.
+A provably-fair dice betting demo. Virtual demo coins only — no real money changes hands.
 
 ## Stack
 
-One Nuxt 3 codebase, two shells, one API:
+One Nuxt 3 codebase, two shells, one API, on the shared RGS platform database
+(see [`docs/adr/0002-carteira-de-rgs.md`](docs/adr/0002-carteira-de-rgs.md) and
+[`docs/adr/0001-local-total-pg-direto-gotrue.md`](docs/adr/0001-local-total-pg-direto-gotrue.md)):
 
 ```
 ┌──────────────────┐     ┌───────────────────┐
 │ Nuxt 3 (SPA)     │     │ Same build wrapped │
-│ Cloudflare Pages │     │ in a Capacitor     │
+│ nginx (compose)  │     │ in a Capacitor     │
 │                  │     │ shell (iOS/Android)│
 └─────────┬────────┘     └─────────┬──────────┘
-          │      Bearer JWT (Supabase Auth)
+          │      Bearer JWT (GoTrue, HS256)
           ▼                        ▼
-      ┌───────────────────────────────────┐      ┌─────────────┐
-      │ Express API — Cloud Run          │◄─────┤ Stripe      │
-      │ game logic · ledger · seeds      │ hook │ (test mode) │
-      └────────────────┬──────────────────┘      └─────────────┘
-                        ▼ service role
       ┌───────────────────────────────────┐
-      │ Supabase Postgres                 │
-      │ wallets · transactions · RLS      │
+      │ Express API                       │
+      │ game logic · seeds                │
+      └────────────────┬──────────────────┘
+                        ▼ role dicebet_api (pg)
+      ┌───────────────────────────────────┐
+      │ RGS platform Postgres             │
+      │ schema dicebet: profiles · bets ·  │
+      │ user_seeds · RPCs                 │
+      │ schema rgs: demo operator wallet   │
+      │ (rgs.demo_wallets/ledger, saga)    │
       └───────────────────────────────────┘
 ```
 
 | Layer | Tech |
 |---|---|
-| Web client | Nuxt 3 (SPA), deployed to Cloudflare Pages |
+| Web client | Nuxt 3 (SPA), served locally via nginx (compose) |
 | Mobile client | Same Nuxt build, wrapped with Capacitor for iOS/Android |
-| API | Express on Cloud Run — game logic, ledger, seed management |
-| Database | Supabase Postgres (wallets, transactions, RLS policies) |
-| Auth | Supabase Auth, verified via Supabase's public JWKS |
-| Payments | Stripe, test mode only |
+| API | Express — game logic, dice math, fairness, seed management |
+| Database | RGS platform Postgres (shared with sibling games), schema `dicebet` + `rgs` |
+| Auth | GoTrue (the platform's), verified via JWKS or shared HS256 secret |
+| Payments | None — demo coins only, refilled from the platform's `demo` operator |
 
 ## Repo layout
 
 ```
 apps/
-  api/    Express API — auth, dice math, fairness, routes for bets/deposits/seeds/wallet/webhook
+  api/    Express API — auth, dice math, fairness, routes for bets/seeds/wallet
   web/    Nuxt 3 app shared by web + mobile (android/, ios/ via Capacitor)
-supabase/
-  migrations/   Postgres schema: wallets, transactions, seed/nonce tracking, grants
-docs/     Architecture & requirements docs (EN + PT-BR)
+db/
+  migrations/   Postgres schema `dicebet`: profiles, bets, seed/nonce tracking, RPCs
+docs/     Architecture & requirements docs (EN + PT-BR; most are .docx + PNG)
 ```
 
 ## Why it's interesting
 
-- **Append-only ledger.** `wallets.balance` always equals `sum(transactions.amount)`. Every money movement goes through a single atomic Postgres function (`place_bet` / `apply_deposit`) with row locking — no lost updates, no half-applied bets. Deposits are idempotent on the Stripe session id, so webhook retries are safe.
+- **Wallet on the platform.** The player's balance lives in `rgs.demo_wallets` + `rgs.ledger` (append-only), moved by a saga (`criarExecutarRodadaNoJogo` from `@kskawarrior/rgs-core`): debit → `dicebet.settle_bet` (game rule, replay guard) → credit if there was a payout — all in one transaction with a savepoint, so a rule failure can't leave a half-applied bet.
 - **Provably fair.** The server commits to `sha256(serverSeed)` before you bet. Each roll is `HMAC-SHA256(serverSeed, clientSeed:nonce)`. Rotating seeds reveals the old one, and the `/fairness` page re-verifies past rolls entirely client-side with Web Crypto.
-- **One API, two clients.** The Nuxt app builds once as an SPA and ships to both Cloudflare Pages and a Capacitor shell — nothing game-critical runs on the client.
+- **One API, two clients.** The Nuxt app builds once as an SPA and ships to both nginx and a Capacitor shell — nothing game-critical runs on the client.
 
 ## Local development
 
+Needs the `rgs` repo cloned alongside this one (`../rgs`) — that's where the shared
+Postgres and GoTrue come from:
+
 ```bash
 npm install
+scripts/local-up.sh   # brings up rgs (if needed), generates .env, brings up this game
 
-# 1. Create a Supabase project, then run the SQL in supabase/migrations/
-# 2. Copy env templates and fill them in
-cp apps/api/.env.example apps/api/.env
+cp apps/api/.env.example apps/api/.env   # AUTH_JWT_SECRET = the root .env's
 cp apps/web/.env.example apps/web/.env
 
 npm run dev:api   # http://localhost:8080
 npm run dev:web   # http://localhost:3000
 ```
 
-Stripe webhooks locally: `stripe listen --forward-to localhost:8080/stripe/webhook`. Test card: `4242 4242 4242 4242`.
-
-Tests (payout math, fairness determinism/uniformity): `npm test`.
+Tests: `npm test` (payout math, fairness determinism/uniformity), `npm run typecheck`,
+`npm run test:integration` (against the `rgs` repo's Postgres — reapplies the `rgs` and
+`dicebet` schemas from scratch).
 
 ## Deploy
 
-- **API → Cloud Run**, via `.github/workflows/deploy-api.yml` on push to `main`. Needs Artifact Registry + Cloud Run enabled, three secrets in Secret Manager (`SUPABASE_SERVICE_ROLE_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`), and Workload Identity Federation for GitHub Actions.
-- **Web → Cloudflare Pages** — build command `npm run generate -w apps/web`, output dir `apps/web/.output/public`.
-- **Mobile** — same static output wrapped with Capacitor. CI bakes public config (`API_BASE`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`) into the APK/IPA at build time.
+Disabled since the local-only phase (ADR-0001) and still pending the RGS rollout's
+cloud story: `.github/workflows/deploy-api.yml` (Cloud Run) and `mobile.yml` only run on
+`workflow_dispatch` and still expect pre-rollout `SUPABASE_*`/`STRIPE_*` secrets — see
+the README's "Deploy (desativado)" section for the up-to-date pendency list.
 
 ## Disclaimer
 
-Demo/portfolio project. Virtual currency only; payments run exclusively in Stripe test mode. Not a gambling product.
+Demo/portfolio project. Virtual demo currency only — no payment processor, no real
+money. Not a gambling product.
