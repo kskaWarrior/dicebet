@@ -76,7 +76,7 @@ try {
     -- houver consumidor.
     grant select on rgs.operators to dicebet_api;
     grant execute on function
-      rgs.demo_mover(uuid, text, char, bigint, text),
+      rgs.demo_mover(uuid, text, char, bigint, text, text),
       rgs.demo_rollback(uuid, uuid),
       rgs.demo_ensure_wallet(text, char, bigint),
       rgs.demo_refill(text, char),
