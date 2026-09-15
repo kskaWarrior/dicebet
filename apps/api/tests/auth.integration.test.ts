@@ -3,7 +3,7 @@ import type { NextFunction, Request, Response } from "express";
 import { SignJWT } from "jose";
 import { afterAll, describe, expect, it } from "vitest";
 import { requireAuth } from "../src/auth.js";
-import { deleteTestUser, getBalance, sql } from "./helpers/db-teste.js";
+import { deleteTestUser, getBalance, ledgerDe, sql } from "./helpers/db-teste.js";
 
 // "Usuário novo faz o primeiro GET /wallet e recebe o bônus de boas-vindas".
 // Exercita `requireAuth` de verdade — token HS256 assinado com o AUTH_JWT_SECRET
@@ -45,7 +45,6 @@ describe("requireAuth contra Postgres real", () => {
   const criados: string[] = [];
   afterAll(async () => {
     for (const id of criados) await deleteTestUser(id);
-    await sql.end();
   });
 
   it("primeira requisição de um jogador novo cria a carteira com $10 de boas-vindas", async () => {
@@ -56,7 +55,7 @@ describe("requireAuth contra Postgres real", () => {
     expect(r.passou).toBe(true);
     expect(r.userId).toBe(sub);
     expect(await getBalance(sub)).toBe(1000);
-    const { rows } = await sql.query("select username from public.profiles where id = $1", [sub]);
+    const { rows } = await sql.query("select username from dicebet.profiles where id = $1", [sub]);
     expect(rows[0]!.username).toBe("novo");
   });
 
@@ -68,11 +67,8 @@ describe("requireAuth contra Postgres real", () => {
 
     expect(resultados.every((r) => r.passou)).toBe(true);
     expect(await getBalance(sub)).toBe(1000);
-    const { rows } = await sql.query(
-      "select count(*)::int as n from public.transactions where user_id = $1 and ref_id like 'welcome:%'",
-      [sub],
-    );
-    expect(rows[0]!.n).toBe(1);
+    const refs = (await ledgerDe(sub)).map((l) => l.ref_id);
+    expect(refs.filter((r) => r.startsWith("welcome:"))).toHaveLength(1);
   });
 
   it("username colidindo com outro jogador ganha sufixo do id", async () => {
@@ -82,7 +78,7 @@ describe("requireAuth contra Postgres real", () => {
     await passarPeloMiddleware(`Bearer ${await token(a, "colisao@dicebet.test")}`);
     const r = await passarPeloMiddleware(`Bearer ${await token(b, "colisao@outro.test")}`);
     expect(r.passou).toBe(true);
-    const { rows } = await sql.query("select username from public.profiles where id = $1", [b]);
+    const { rows } = await sql.query("select username from dicebet.profiles where id = $1", [b]);
     expect(rows[0]!.username).toBe(`colisao-${b.slice(0, 8)}`);
   });
 
@@ -90,7 +86,7 @@ describe("requireAuth contra Postgres real", () => {
     const sub = randomUUID();
     criados.push(sub);
     await passarPeloMiddleware(`Bearer ${await token(sub)}`);
-    const { rows } = await sql.query("select username from public.profiles where id = $1", [sub]);
+    const { rows } = await sql.query("select username from dicebet.profiles where id = $1", [sub]);
     expect(rows[0]!.username).toBe(sub.slice(0, 8));
   });
 
@@ -112,7 +108,7 @@ describe("requireAuth contra Postgres real", () => {
       .setExpirationTime("5m")
       .sign(segredo);
     expect((await passarPeloMiddleware(`Bearer ${audErrada}`)).status).toBe(401);
-    const { rows } = await sql.query("select 1 from public.profiles where id = $1", [sub]);
+    const { rows } = await sql.query("select 1 from dicebet.profiles where id = $1", [sub]);
     expect(rows).toHaveLength(0);
   });
 });
