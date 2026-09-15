@@ -16,7 +16,7 @@ export interface SeedRow {
 async function insertSeed(userId: string, clientSeed: string): Promise<SeedRow> {
   const serverSeed = generateServerSeed();
   const { rows } = await db.query<SeedRow>(
-    `insert into public.user_seeds (user_id, server_seed, server_seed_hash, client_seed)
+    `insert into dicebet.user_seeds (user_id, server_seed, server_seed_hash, client_seed)
      values ($1, $2, $3, $4) returning *`,
     [userId, serverSeed, hashServerSeed(serverSeed), clientSeed],
   );
@@ -25,7 +25,7 @@ async function insertSeed(userId: string, clientSeed: string): Promise<SeedRow> 
 
 export async function getOrCreateActiveSeed(userId: string): Promise<SeedRow> {
   const { rows } = await db.query<SeedRow>(
-    "select * from public.user_seeds where user_id = $1 and active limit 1",
+    "select * from dicebet.user_seeds where user_id = $1 and active limit 1",
     [userId],
   );
   if (rows[0]) return rows[0];
@@ -35,7 +35,7 @@ export async function getOrCreateActiveSeed(userId: string): Promise<SeedRow> {
 /** Desativa + revela o seed atual e cria um novo. */
 export async function rotateSeed(userId: string, clientSeed?: string) {
   const current = await getOrCreateActiveSeed(userId);
-  await db.query("update public.user_seeds set active = false, revealed_at = now() where id = $1", [
+  await db.query("update dicebet.user_seeds set active = false, revealed_at = now() where id = $1", [
     current.id,
   ]);
   const next = await insertSeed(userId, clientSeed?.slice(0, 64) || randomBytes(8).toString("hex"));
@@ -45,7 +45,7 @@ export async function rotateSeed(userId: string, clientSeed?: string) {
 /** Reivindica o próximo nonce atomicamente (SQL: nonce = nonce + 1 returning old). */
 export async function claimNonce(seedId: string): Promise<number> {
   const { rows } = await db.query<{ nonce: number | null }>(
-    "select public.use_next_nonce($1) as nonce",
+    "select dicebet.use_next_nonce($1) as nonce",
     [seedId],
   );
   const nonce = rows[0]?.nonce ?? null;

@@ -53,7 +53,7 @@ export function identityFrom(payload: JWTPayload): TokenIdentity | null {
 // barata (lock + um `exists`); sem cache por processo de propósito: um
 // `migrate --reset` com a API no ar re-bootstrapa sozinho.
 export async function ensurePlayer({ userId, username }: TokenIdentity): Promise<void> {
-  await db.query("select public.ensure_player($1, $2)", [userId, username]);
+  await db.query("select dicebet.ensure_player($1, $2)", [userId, username]);
 }
 
 /** Verifica o Bearer token e garante que o jogador existe no banco. */

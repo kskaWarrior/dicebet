@@ -8,14 +8,14 @@
     "start": "node dist/index.js",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.test.json",
-    "test:integration": "node ../../db/migrate.mjs --reset && vitest run --config vitest.integration.config.ts"
+    "test:integration": "node ../../node_modules/@kskawarrior/rgs-core/db/migrate.mjs --reset && node ../../db/migrate.mjs --reset && vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
+    "@kskawarrior/rgs-core": "^0.7.0",
     "cors": "^2.8.5",
     "express": "^5.2.1",
     "jose": "^5.9.0",
     "pg": "^8.23.0",
-    "stripe": "^17.0.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {

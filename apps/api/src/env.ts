@@ -31,12 +31,8 @@ export const env = {
     audience: process.env.AUTH_AUDIENCE,
     issuer: process.env.AUTH_ISSUER,
   },
-  stripeSecretKey: required("STRIPE_SECRET_KEY"),
-  stripeWebhookSecret: required("STRIPE_WEBHOOK_SECRET"),
   // Lista separada por vírgula das origens permitidas (web + Capacitor)
   corsOrigins: (process.env.CORS_ORIGINS ?? "http://localhost:3000")
     .split(",")
     .map((o) => o.trim()),
-  // Para onde o Stripe Checkout redireciona depois do pagamento
-  checkoutReturnUrl: process.env.CHECKOUT_RETURN_URL ?? "http://localhost:3000",
 };

@@ -39,7 +39,7 @@ seeds.post("/rotate", requireAuth, async (req, res) => {
 
 seeds.get("/revealed", requireAuth, async (req, res) => {
   const { rows } = await db.query(
-    `select server_seed, server_seed_hash, client_seed, nonce, revealed_at from public.user_seeds
+    `select server_seed, server_seed_hash, client_seed, nonce, revealed_at from dicebet.user_seeds
      where user_id = $1 and not active and revealed_at is not null
      order by revealed_at desc limit 20`,
     [req.userId!],
