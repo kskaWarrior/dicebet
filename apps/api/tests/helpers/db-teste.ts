@@ -107,9 +107,10 @@ export async function placeBet(
   target = 50,
   roll = 99.99,
   payout = 0,
-): Promise<ResultadoRpc<{ bet: BetRow; balance: number | null }>> {
+  freeRoundId?: string,
+): Promise<ResultadoRpc<{ bet: BetRow; balance: number | null; freeRound?: { roundsRestantes: number } }>> {
   try {
-    const r = await settleBetSaga(dbApiTransacional, userId, seed, nonce, stake, target, roll, payout);
+    const r = await settleBetSaga(dbApiTransacional, userId, seed, nonce, stake, target, roll, payout, freeRoundId);
     return { data: r, error: null };
   } catch (error) {
     return { data: null as never, error: { message: (error as Error).message } };

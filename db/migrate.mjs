@@ -101,7 +101,8 @@ try {
     grant insert, update on dicebet.user_seeds to dicebet_api;
     grant execute on all functions in schema dicebet to dicebet_api;
     grant usage on schema rgs to dicebet_api;
-    grant select on rgs.demo_wallets, rgs.ledger, rgs.wallet_ops to dicebet_api;
+    grant select on rgs.demo_wallets, rgs.ledger, rgs.wallet_ops, rgs.bonus_wallets, rgs.free_rounds
+      to dicebet_api;
     -- A saga resolve a carteira do operador lendo esta tabela. operator_keys NÃO entra:
     -- é a chave do operador http, que a etapa 1 não tem — quem conceder, conceda quando
     -- houver consumidor.
@@ -113,7 +114,11 @@ try {
       rgs.demo_refill(text, char),
       rgs.demo_saldo(text),
       rgs.wallet_op_registrar(uuid, uuid, text, text, text, text, text, bigint, char, uuid, text),
-      rgs.wallet_op_atualizar(uuid, text, jsonb)
+      rgs.wallet_op_atualizar(uuid, text, jsonb),
+      -- E9: ordem de consumo bônus/real e o consumo de rodada grátis (mesmos grants do
+      -- roletafly, o piloto).
+      rgs.fundo_para_debito(uuid, text, char, bigint),
+      rgs.free_round_consumir(uuid, uuid, text, text, text, uuid)
       to dicebet_api;
   `);
   console.log("grants de dicebet_api ok");
