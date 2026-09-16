@@ -2,7 +2,11 @@
 // da plataforma (rollout RGS, docs/adr/0002-carteira-de-rgs.md daqui). O schema `rgs`
 // precisa existir antes: `node node_modules/@kskawarrior/rgs-core/db/migrate.mjs` (o
 // `npm run db:migrate` faz os dois). Cada arquivo roda numa transação e é registrado em
-// `dicebet.schema_migrations`.
+// `dicebet.schema_migrations`, junto com o sha256 do conteúdo aplicado. Migration já
+// registrada com hash DIFERENTE do arquivo atual faz o migrate falhar alto — este banco é
+// compartilhado por vários jogos/repos, e editar uma migration velha nunca a reaplica
+// sozinho (drift silencioso: foi assim que `plinko.user_seeds` ficou com RLS forçada e
+// zero policies, plinkofly@a717cd6).
 //
 // Ao final, cria (se preciso) e (re)concede ao role `dicebet_api` — o único que a API
 // usa — o que ela precisa e nada mais: EXECUTE nas RPCs, SELECT nas tabelas e
@@ -18,9 +22,12 @@
 //
 //   node db/migrate.mjs               # DATABASE_URL opcional (default: compose do rgs)
 //   node db/migrate.mjs --reset       # dropa e recria o schema dicebet antes (testes)
+import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
+
+const checksum = (sql) => createHash("sha256").update(sql).digest("hex");
 
 // Default = o `postgres` do docker-compose do repo `rgs`, como superusuário (cria o role
 // da API).
@@ -36,15 +43,39 @@ try {
   await client.query(
     "create table if not exists dicebet.schema_migrations (name text primary key, applied_at timestamptz not null default now())",
   );
-  const aplicadas = new Set(
-    (await client.query("select name from dicebet.schema_migrations")).rows.map((r) => r.name),
+  // Migração antiga do banco: nem toda `schema_migrations` já tem a coluna.
+  await client.query("alter table dicebet.schema_migrations add column if not exists checksum text");
+  const aplicadas = new Map(
+    (await client.query("select name, checksum from dicebet.schema_migrations")).rows.map((r) => [
+      r.name,
+      r.checksum,
+    ]),
   );
   for (const name of readdirSync(dir).filter((f) => f.endsWith(".sql")).sort()) {
-    if (aplicadas.has(name)) continue;
+    const sql = readFileSync(dir + name, "utf8");
+    const hash = checksum(sql);
+    if (aplicadas.has(name)) {
+      const registrado = aplicadas.get(name);
+      if (registrado === null) {
+        // Aplicada antes de existir checksum: não dá pra saber se o conteúdo que rodou é
+        // este. Backfilla em silêncio — a partir de agora ela é rastreada.
+        await client.query("update dicebet.schema_migrations set checksum = $1 where name = $2", [hash, name]);
+      } else if (registrado !== hash) {
+        // O BANCO reflete o que rodou quando foi aplicada, não o arquivo de hoje — e este
+        // migrate só roda migrations NOVAS, nunca reaplica uma já marcada. Falha alto e
+        // cedo em vez de seguir como se nada tivesse mudado: quem editou decide se é uma
+        // migration NOVA (nome novo) ou uma correção manual do banco já aplicada.
+        throw new Error(
+          `migration ${name} já foi aplicada com outro conteúdo (checksum ${registrado} != ${hash}). ` +
+            "Não reaplica migration editada: crie uma migration nova para o ajuste, ou corrija o banco manualmente.",
+        );
+      }
+      continue;
+    }
     await client.query("begin");
     try {
-      await client.query(readFileSync(dir + name, "utf8"));
-      await client.query("insert into dicebet.schema_migrations (name) values ($1)", [name]);
+      await client.query(sql);
+      await client.query("insert into dicebet.schema_migrations (name, checksum) values ($1, $2)", [name, hash]);
       await client.query("commit");
       console.log(`aplicada ${name}`);
     } catch (error) {
