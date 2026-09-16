@@ -4,6 +4,16 @@ interface BetResponse {
   win: boolean;
   multiplier: number;
   balance: number;
+  /** Presente só quando a aposta consumiu uma rodada grátis (E9). */
+  freeRound?: { roundsRestantes: number };
+}
+
+/** Uma concessão de rodada grátis ainda utilizável (E9). */
+interface FreeRoundAtiva {
+  id: string;
+  stakeCents: number;
+  roundsRestantes: number;
+  expiresAt: string;
 }
 
 const api = useApi();
@@ -25,6 +35,7 @@ const gaugeWrap = ref<HTMLElement | null>(null);
 const confettiCanvas = ref<HTMLCanvasElement | null>(null);
 const gaugeConfettiCanvas = ref<HTMLCanvasElement | null>(null);
 const flashTier = ref<"win" | "big" | null>(null);
+const freeRounds = ref<FreeRoundAtiva[] | null>(null);
 
 // Checked once: consistent with the reduced-motion check already made per-roll below.
 const reducedMotion = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -36,13 +47,26 @@ const gaugeState = computed(() => {
   if (last.value) return last.value.win ? "won" : "lost";
   return "idle";
 });
+/** A mais próxima de vencer — a mesma que `usarRodadaGratis()` consome. */
+const rodadaGratisAtiva = computed(() => freeRounds.value?.[0] ?? null);
 
 onMounted(refreshWallet);
+onMounted(carregarRodadasGratis);
 
 async function refreshWallet() {
   try {
     const res = await api<{ balance: number }>("/wallet");
     balance.value = res.balance;
+  } catch {
+    /* redirected to login */
+  }
+}
+
+/** Busca uma vez, ao montar a página. */
+async function carregarRodadasGratis() {
+  try {
+    const res = await api<{ freeRounds: FreeRoundAtiva[] }>("/bets/free-rounds");
+    freeRounds.value = res.freeRounds;
   } catch {
     /* redirected to login */
   }
@@ -59,7 +83,7 @@ function fireConfetti(canvas: HTMLCanvasElement | null, tier: "win" | "big") {
   burstConfetti(canvas, tier);
 }
 
-async function roll() {
+async function roll(freeRoundId?: string, stakeCentsOverride?: number) {
   rolling.value = true;
   error.value = "";
   last.value = null;
@@ -84,13 +108,23 @@ async function roll() {
   try {
     const res = await api<BetResponse>("/bets", {
       method: "POST",
-      body: { stake: Math.round(stakeDollars.value * 100), target: target.value },
+      body: { stake: stakeCentsOverride ?? Math.round(stakeDollars.value * 100), target: target.value, freeRoundId },
     });
     // Let the shake play out before revealing the result
     await sleep(Math.max(0, spinMs - (performance.now() - started)));
     last.value = res;
     balance.value = res.balance;
     gaugeValue.value = res.bet.roll;
+    // A resposta já diz quantas restam — sem isto teria que buscar de novo (e um retry
+    // perderia a corrida com a próxima aposta do jogador). Esgotada, some da lista.
+    if (res.freeRound && freeRounds.value && freeRoundId) {
+      freeRounds.value =
+        res.freeRound.roundsRestantes > 0
+          ? freeRounds.value.map((fr) =>
+              fr.id === freeRoundId ? { ...fr, roundsRestantes: res.freeRound!.roundsRestantes } : fr,
+            )
+          : freeRounds.value.filter((fr) => fr.id !== freeRoundId);
+    }
     if (res.win) {
       const tier: "win" | "big" = res.multiplier >= 2 ? "big" : "win";
       playWin(tier);
@@ -110,6 +144,19 @@ async function roll() {
     if (ticker) clearInterval(ticker);
     rolling.value = false;
   }
+}
+
+/**
+ * Usa a rodada grátis mais próxima de vencer (a lista já vem ordenada por `expires_at` do
+ * servidor) com a stake travada pela campanha, não a stake ativa do jogador:
+ * `settle_bet` recusaria qualquer outra (spec E9).
+ */
+async function usarRodadaGratis() {
+  const fr = rodadaGratisAtiva.value;
+  if (!fr || rolling.value) return;
+  // A stake exibida no formulário não muda — a stake travada da campanha vai direto no
+  // pedido, sem sobrescrever o valor que o jogador já tinha digitado.
+  await roll(fr.id, fr.stakeCents);
 }
 
 // Recarga do operador demo (rollout RGS): sem valor à escolha — a regra (só
@@ -155,7 +202,19 @@ async function refill() {
 
     <p class="hint">{{ t("game.winPays", { amount: formatCents(potentialWin) }) }}</p>
 
-    <button :disabled="rolling" @click="roll">{{ rolling ? t("game.rolling") : t("game.roll") }}</button>
+    <!-- E9: mostra a rodada grátis disponível e a stake travada. Um clique já aposta — o
+         formulário manual não entra na jogada da rodada grátis. -->
+    <div v-if="rodadaGratisAtiva" class="rodada-gratis">
+      <span class="rotulo">
+        🎁 {{ t("freeRound.available") }} {{ rodadaGratisAtiva.roundsRestantes }} ·
+        {{ t("freeRound.stake") }} {{ formatCents(rodadaGratisAtiva.stakeCents) }}
+      </span>
+      <button type="button" :disabled="rolling" @click="usarRodadaGratis">
+        {{ t("freeRound.use") }}
+      </button>
+    </div>
+
+    <button :disabled="rolling" @click="roll()">{{ rolling ? t("game.rolling") : t("game.roll") }}</button>
 
     <div ref="resultWrap" class="result-wrap">
       <div v-if="rolling" class="result spinning">
@@ -247,4 +306,17 @@ label { display: flex; flex-direction: column; gap: 0.4rem; }
 .error { color: #fca5a5; }
 .deposits { display: flex; gap: 0.75rem; }
 hr { border-color: var(--border); width: 100%; }
+
+.rodada-gratis {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+  padding: 0.5rem 0.75rem; border-radius: 8px;
+  border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent);
+  font-size: 0.8rem;
+}
+.rodada-gratis .rotulo { color: var(--text); }
+.rodada-gratis button {
+  padding: 0.4rem 0.8rem; border-radius: 6px; border: none;
+  background: var(--accent); color: #05221d; font-weight: 700; cursor: pointer;
+}
+.rodada-gratis button:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>
