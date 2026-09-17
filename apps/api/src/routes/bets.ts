@@ -131,8 +131,23 @@ export async function settleBetSaga(
         await tx.query("savepoint liquidacao");
         try {
           const { rows } = await tx.query<{ bet_id: string; payout: number }>(
-            "select * from dicebet.settle_bet($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
-            [userId, seed.id, nonce, stake, target, roll, payout, seed.server_seed_hash, seed.client_seed, fundType],
+            "select * from dicebet.settle_bet($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+            [
+              userId,
+              seed.id,
+              nonce,
+              stake,
+              target,
+              roll,
+              payout,
+              seed.server_seed_hash,
+              seed.client_seed,
+              fundType,
+              // E10: id do FATO, não da tentativa — gravado na outbox dentro da mesma
+              // transação da liquidação, para que uma aposta recusada não deixe evento
+              // para trás. Uma retentativa desta liquidação reusa este mesmo id.
+              uuidv7(),
+            ],
           );
           await tx.query("release savepoint liquidacao");
           const row = rows[0]!;
