@@ -11,7 +11,7 @@
     "test:integration": "node ../../node_modules/@kskawarrior/rgs-core/db/migrate.mjs --reset && node ../../db/migrate.mjs --reset && vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
-    "@kskawarrior/rgs-core": "^0.8.1",
+    "@kskawarrior/rgs-core": "^0.9.0",
     "cors": "^2.8.5",
     "express": "^5.2.1",
     "jose": "^5.9.0",
