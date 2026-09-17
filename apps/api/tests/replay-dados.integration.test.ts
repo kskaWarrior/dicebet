@@ -62,6 +62,19 @@ describe("dicebet.replay_dados", () => {
     expect(params.bate).toBe(true);
   });
 
+  // Teste de contrato (spec E11, "Testing Decisions"): a forma da assinatura — entrada =
+  // round id, saída = proof_material/params — serve de exemplo para o próximo jogo.
+  it("respeita a forma do contrato <jogo>.replay_dados: entrada = round id, saída = proof_material/params", async () => {
+    const vetor = VETORES[0]!;
+    const seedId = await plantarAposta(vetor);
+    const { rows } = await replayDados(`${seedId}:${vetor.nonce}`);
+
+    expect(rows).toHaveLength(1);
+    expect(Object.keys(rows[0]!).sort()).toEqual(["params", "proof_material"]);
+    expect(typeof rows[0]!.proof_material).toBe("object");
+    expect(typeof rows[0]!.params).toBe("object");
+  });
+
   it("UNKNOWN_ROUND para round_id de seed/nonce inexistente", async () => {
     await expect(replayDados(`${randomUUID()}:0`)).rejects.toThrow(/UNKNOWN_ROUND/);
   });

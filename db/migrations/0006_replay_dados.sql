@@ -11,9 +11,16 @@
 -- `db/migrations/0005_evento_round_settled.sql`, linha 77).
 --
 -- DiceBet não tem `operator_id` por linha (fora de escopo do E7 aqui, ver comentário em
--- 0005_evento_round_settled.sql) — só existe o operador `demo` hoje. A checagem contra
--- `rgs.operador_atual()` é a mesma dupla camada do roletafly, mesmo sem RLS local para
--- reforçar (dicebet.bets/user_seeds não têm policy, porque não têm operator_id ainda).
+-- 0005_evento_round_settled.sql) — só existe o operador `demo` hoje. ATENÇÃO (achado do
+-- code-review, Spec): a checagem `operador_atual() = p_operator_id` aqui NÃO é a mesma
+-- proteção que no roletafly — lá a RLS de `roleta_giros`/`user_seeds` filtra linhas de
+-- verdade por operador (US15); aqui, sem RLS (`dicebet.bets`/`user_seeds` não têm
+-- `operator_id`, logo não têm policy), a checagem só confirma que quem chama está
+-- autenticado como ALGUM operador válido — não impede ler round_id de outro operador se
+-- um dia existir mais de um. Inofensivo hoje (só existe `demo`, e popular um segundo
+-- operador é Out of Scope desta spec), mas é uma limitação real do jogo, não resolvida
+-- por este épico — herdada de toda leitura já existente em `dicebet.bets`, não introduzida
+-- por este replay.
 create extension if not exists pgcrypto;
 
 create or replace function dicebet.replay_dados(p_operator_id uuid, p_round_id text)
