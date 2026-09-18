@@ -27,7 +27,22 @@ import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
 
-const checksum = (sql) => createHash("sha256").update(sql).digest("hex");
+// O checksum ignora o fim de linha de propósito. O mesmo arquivo tem CRLF na cópia de
+// trabalho do Windows (o git converte no checkout) e LF dentro do container e no CI —
+// bytes diferentes, conteúdo idêntico. Sem normalizar, aplicar a migration do host e
+// conferir do container acusa "aplicada com outro conteúdo" numa migration que ninguém
+// tocou, e o único jeito de sair disso é mexer no banco à mão. Também tira o BOM, que
+// `readFileSync(..., "utf8")` entrega como primeiro caractere, e o CR solto que um editor
+// de fim de linha misto deixa para trás.
+//
+// Mesma normalização do `db/migrate.mjs` do repo `rgs` (que travou o stack do E12a em
+// 2026-09-18); o BOM é testado por código de caractere em vez do escape `\u`, que não
+// sobrevive a toda ferramenta que edita este arquivo.
+const semBom = (sql) => (sql.charCodeAt(0) === 0xfeff ? sql.slice(1) : sql);
+const checksum = (sql) => createHash("sha256").update(semBom(sql).replace(/\r\n?/g, "\n")).digest("hex");
+
+/** Checksum no formato ANTIGO (bytes crus), só para reconhecer registros legados. */
+const legacyChecksum = (sql) => createHash("sha256").update(sql).digest("hex");
 
 // Default = o `postgres` do docker-compose do repo `rgs`, como superusuário (cria o role
 // da API).
@@ -59,6 +74,11 @@ try {
       if (registrado === null) {
         // Aplicada antes de existir checksum: não dá pra saber se o conteúdo que rodou é
         // este. Backfilla em silêncio — a partir de agora ela é rastreada.
+        await client.query("update dicebet.schema_migrations set checksum = $1 where name = $2", [hash, name]);
+      } else if (registrado === legacyChecksum(sql) && registrado !== hash) {
+        // Registro gravado antes da normalizacao: o conteudo confere, so o fim de linha
+        // era outro. Migra o registro para o formato novo em vez de fazer o operador
+        // escolher entre editar o banco a mao e reinstalar tudo.
         await client.query("update dicebet.schema_migrations set checksum = $1 where name = $2", [hash, name]);
       } else if (registrado !== hash) {
         // O BANCO reflete o que rodou quando foi aplicada, não o arquivo de hoje — e este
