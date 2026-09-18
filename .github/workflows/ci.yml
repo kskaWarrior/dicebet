@@ -17,6 +17,18 @@ permissions:
   contents: read
 
 jobs:
+  # E12a US9 — `npm audit` bloqueante a partir de `high`, em TODAS as dependências
+  # (decisão e exceções: rgs/docs/adr/0010-npm-audit-bloqueante.md). Sem `npm install`:
+  # o audit lê o package-lock e consulta o registro público — não precisa de token nem
+  # de node_modules, e um job à parte falha sozinho sem esconder os outros.
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm audit --audit-level=high
+
   typecheck:
     runs-on: ubuntu-latest
     steps:
