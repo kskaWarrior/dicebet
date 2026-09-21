@@ -238,11 +238,23 @@ export interface ApostaRepository {
     payout: number;
     freeRoundId?: string;
   }): Promise<{ bet: BetRow; balance: number | null; freeRound?: { roundsRestantes: number } }>;
+  freeRoundsAtivas(userId: string): Promise<FreeRoundAtiva[]>;
+  listarApostas(userId: string): Promise<BetRow[]>;
 }
 
+/**
+ * `settleBetSaga`/`freeRoundsAtivas`/`listarApostas` acima seguem exportadas como funções
+ * soltas com `db` por parâmetro (não só `placeBet`) — é o que permite `tests/grants.
+ * integration.test.ts` chamar a MESMA saga com o role restrito da API (ver comentário de
+ * `settleBetSaga`). `createApostaRepository` é a fachada que o `di.ts` usa: liga as três ao
+ * mesmo `db`, no mesmo molde do `aposta-plinko` do plinkofly (`createApostaRepository`
+ * devolvendo todos os métodos do contrato, nunca uma mistura de objeto + função solta).
+ */
 export function createApostaRepository(db: DbTransacional): ApostaRepository {
   return {
     placeBet: ({ userId, seed, nonce, stake, target, roll, payout, freeRoundId }) =>
       settleBetSaga(db, userId, seed, nonce, stake, target, roll, payout, freeRoundId),
+    freeRoundsAtivas: (userId) => freeRoundsAtivas(db, userId),
+    listarApostas: (userId) => listarApostas(db, userId),
   };
 }

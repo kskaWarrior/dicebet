@@ -58,11 +58,18 @@ export async function seedsRevelados(db: Db, userId: string) {
 export interface SeedRepository {
   getOrCreateActiveSeed(userId: string): Promise<SeedRow>;
   claimNonce(seedId: string): Promise<number>;
+  rotateSeed(userId: string, clientSeed?: string): ReturnType<typeof rotateSeed>;
+  seedsRevelados(userId: string): ReturnType<typeof seedsRevelados>;
 }
 
+/** Fachada que o `di.ts` usa: liga as quatro funções acima ao mesmo `db`, mesmo molde do
+ *  `createSeedRepository` do `aposta-plinko` (plinkofly) — todos os métodos do contrato
+ *  saem do factory, nunca uma mistura de objeto + função solta. */
 export function createSeedRepository(db: Db): SeedRepository {
   return {
     getOrCreateActiveSeed: (userId) => getOrCreateActiveSeed(db, userId),
     claimNonce: (seedId) => claimNonce(db, seedId),
+    rotateSeed: (userId, clientSeed) => rotateSeed(db, userId, clientSeed),
+    seedsRevelados: (userId) => seedsRevelados(db, userId),
   };
 }
