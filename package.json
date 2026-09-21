@@ -11,6 +11,14 @@
     "build": "npm run build -w apps/api && npm run generate -w apps/web",
     "typecheck": "npm run typecheck -w apps/api",
     "test:integration": "npm run test:integration -w apps/api",
+    "lint": "eslint .",
     "db:migrate": "node node_modules/@kskawarrior/rgs-core/db/migrate.mjs && node db/migrate.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.9.1",
+    "eslint-import-resolver-typescript": "^4.4.5",
+    "eslint-plugin-boundaries": "^7.2.0",
+    "typescript-eslint": "^8.68.0"
   }
 }
