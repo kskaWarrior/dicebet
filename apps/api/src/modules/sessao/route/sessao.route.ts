@@ -21,7 +21,7 @@ sessaoRouter.post("/", async (req, res) => {
   const parsed = AbrirSessaoRequest.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "INVALID_BODY" });
   const { operator, launchToken, locale } = parsed.data;
-  if (!operator || operator === OPERADOR_DEMO_ID) return res.status(400).json({ error: "DEMO_EXIGE_LOGIN" });
+  if (!operator || operator === OPERADOR_DEMO_ID) return res.status(400).json({ error: "DEMO_REQUIRES_AUTH" });
   try {
     const { token, sessao } = await abrirSessao({ operatorId: operator, launchToken, locale });
     res.json({ token, currency: sessao.currency, locale: sessao.locale, expiresAt: sessao.expiresAt });

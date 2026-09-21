@@ -49,7 +49,7 @@ describe("POST /sessions", () => {
       body: JSON.stringify({ operator: OPERADOR_DEMO_ID, launchToken: "qualquer" }),
     });
     expect(r.status).toBe(400);
-    expect(await r.json()).toEqual({ error: "DEMO_EXIGE_LOGIN" });
+    expect(await r.json()).toEqual({ error: "DEMO_REQUIRES_AUTH" });
   });
 
   it("recusa operador ausente", async () => {
@@ -59,7 +59,7 @@ describe("POST /sessions", () => {
       body: JSON.stringify({ launchToken: "qualquer" }),
     });
     expect(r.status).toBe(400);
-    expect(await r.json()).toEqual({ error: "DEMO_EXIGE_LOGIN" });
+    expect(await r.json()).toEqual({ error: "DEMO_REQUIRES_AUTH" });
   });
 });
 
