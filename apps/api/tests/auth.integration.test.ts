@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 import { SignJWT } from "jose";
 import { afterAll, describe, expect, it } from "vitest";
-import { requireAuth } from "../src/auth.js";
+import { requireAuth } from "../src/shared/auth.js";
 import { deleteTestUser, getBalance, ledgerDe, sql } from "./helpers/db-teste.js";
 
 // "Usuário novo faz o primeiro GET /wallet e recebe o bônus de boas-vindas".

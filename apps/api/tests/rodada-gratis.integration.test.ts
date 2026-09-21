@@ -1,6 +1,6 @@
 import { OPERADOR_DEMO_ID } from "@kskawarrior/rgs-core";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import { freeRoundsAtivas } from "../src/routes/bets.js";
+import { freeRoundsAtivas } from "../src/modules/aposta-dice/repository/aposta.repository.js";
 import { createSeed, createTestUser, dbApiTransacional, deleteTestUser, getBalance, placeBet, sql } from "./helpers/db-teste.js";
 
 // E9 — a rodada grátis fim a fim pela saga do jogo (mesmo molde do piloto roletafly,

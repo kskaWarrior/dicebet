@@ -12,6 +12,8 @@ export default defineConfig({
       // src/auth.ts, que exige a config de auth no import (env.ts).
       AUTH_JWT_SECRET: "segredo-de-teste",
       AUTH_AUDIENCE: "authenticated",
+      // E13: exigido pelo módulo `sessao` (POST /sessions), importado por app.ts/di.ts.
+      RGS_SESSION_SECRET: "segredo-de-sessao-de-teste",
     },
   },
 });

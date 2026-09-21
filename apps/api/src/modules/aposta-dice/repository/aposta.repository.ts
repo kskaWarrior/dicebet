@@ -5,24 +5,12 @@ import {
   OPERADOR_DEMO_ID,
   uuidv7,
 } from "@kskawarrior/rgs-core";
-import { Router } from "express";
-import { z } from "zod";
-import { requireAuth } from "../auth.js";
-import { db, type DbTransacional } from "../db.js";
-import { MAX_TARGET, MIN_TARGET, multiplierFor, payoutFor } from "../dice.js";
-import { computeRoll } from "../fair.js";
-import { claimNonce, getOrCreateActiveSeed } from "../seeds.js";
+import type { DbTransacional } from "../../../shared/db.js";
+import type { BetRow, FreeRoundAtiva, FundType, SeedParaAposta } from "../domain/model/aposta.model.js";
+
+export type { BetRow, SeedParaAposta };
 
 const GAME = "dicebet";
-
-export const bets = Router();
-
-const placeBetSchema = z.object({
-  stake: z.number().int().min(1).max(1_000_00), // centavos, máx $1000 por aposta
-  target: z.number().multipleOf(0.01).min(MIN_TARGET).max(MAX_TARGET),
-  // E9: consome uma rodada de uma concessão de rodadas grátis em vez de debitar.
-  freeRoundId: z.string().uuid().optional(),
-});
 
 const KNOWN_ERRORS: Record<string, number> = {
   INSUFFICIENT_FUNDS: 422,
@@ -39,7 +27,7 @@ const KNOWN_ERRORS: Record<string, number> = {
   FREE_ROUND_STAKE_MISMATCH: 400,
 };
 
-function errorCode(message: string): { code: string; status: number } | null {
+export function errorCode(message: string): { code: string; status: number } | null {
   for (const [code, status] of Object.entries(KNOWN_ERRORS)) {
     if (message.includes(code)) return { code, status };
   }
@@ -63,44 +51,14 @@ function desembrulhar(e: unknown): unknown {
   return new Error(e.codigo, { cause: e });
 }
 
-export interface SeedParaAposta {
-  id: string;
-  server_seed_hash: string;
-  client_seed: string;
-}
-
-export interface BetRow {
-  id: string;
-  user_id: string;
-  seed_id: string;
-  stake: number;
-  target: number;
-  roll: number;
-  payout: number;
-  server_seed_hash: string;
-  client_seed: string;
-  nonce: number;
-  fund_type: "real" | "bonus" | "free_round";
-  created_at: string;
-}
-
-export interface FreeRoundAtiva {
-  id: string;
-  stakeCents: number;
-  roundsRestantes: number;
-  expiresAt: string;
-}
-
-type FundType = "real" | "bonus" | "free_round";
-
 /**
  * Saga da aposta (rgs ADR-0003, docs/adr/0002-carteira-de-rgs.md): débito na carteira
  * do operador demo → `settle_bet` (guarda de replay + registro da aposta, sem ledger) →
  * crédito se houve prêmio. O `roundId` é o `(seed_id, nonce)`, único por aposta.
- * Exportada (não só usada pela rota) para as suítes de integração chamarem a MESMA saga
- * que a API usa, em vez de reimplementar a orquestração no teste — recebendo `db` por
- * parâmetro, e não o singleton do módulo, para os testes poderem passar o role da API
- * e provar que os GRANTs bastam, no lugar do `db` de produção (`env.databaseUrl`).
+ *
+ * Recebe `db` por parâmetro (nunca importa o pool/singleton) — é o que permite as suítes
+ * de integração chamarem a MESMA saga que a API usa, com o role restrito da API
+ * (`tests/grants.integration.test.ts`), em vez de reimplementar a orquestração no teste.
  *
  * E9: `freeRoundId` consome uma concessão de rodadas grátis em vez de debitar
  * (`rgs.free_round_consumir`). Sem ele, a ordem de consumo bônus/real
@@ -235,48 +193,10 @@ export async function settleBetSaga(
   }
 }
 
-bets.post("/", requireAuth, async (req, res) => {
-  const parsed = placeBetSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: "INVALID_BET", details: parsed.error.issues });
-  }
-  const { stake, target, freeRoundId } = parsed.data;
-  const userId = req.userId!;
-
-  const seed = await getOrCreateActiveSeed(userId);
-  // Reivindicado numa consulta própria, fora da transação de liquidação abaixo: um
-  // rollback da saga não pode devolver o nonce, senão a próxima tentativa repetiria o
-  // `roundId` (`seed:nonce`) que `rgs.wallet_ops` já usou.
-  const nonce = await claimNonce(seed.id);
-  const roll = computeRoll(seed.server_seed, seed.client_seed, nonce);
-  const payout = payoutFor(stake, target, roll);
-
-  let bet: BetRow;
-  let balance: number | null;
-  let freeRound: { roundsRestantes: number } | undefined;
-  try {
-    ({ bet, balance, freeRound } = await settleBetSaga(db, userId, seed, nonce, stake, target, roll, payout, freeRoundId));
-  } catch (error) {
-    const known = errorCode((error as Error).message);
-    if (known) return res.status(known.status).json({ error: known.code });
-    console.error("settle_bet failed", error);
-    return res.status(500).json({ error: "BET_FAILED" });
-  }
-
-  return res.json({
-    bet,
-    win: payout > 0,
-    multiplier: multiplierFor(target),
-    balance,
-    ...(freeRound ? { freeRound } : {}),
-  });
-});
-
 // E9: concessões de rodada grátis ainda utilizáveis deste jogador. "Utilizável" é o que
 // `rgs.free_round_consumir` também checaria (não cancelada, não vencida, com rodadas
 // restantes) — listar aqui não duplica a REGRA, só evita mostrar algo que a próxima
-// aposta recusaria de cara. Exportada para as suítes de integração chamarem a MESMA
-// consulta que a rota usa.
+// aposta recusaria de cara.
 export async function freeRoundsAtivas(db: DbTransacional, userId: string): Promise<FreeRoundAtiva[]> {
   const { rows } = await db.comOperador(OPERADOR_DEMO_ID, (tx) =>
     tx.query<{ id: string; stake_minor: string; rounds_total: number; rounds_used: number; expires_at: Date }>(
@@ -296,15 +216,45 @@ export async function freeRoundsAtivas(db: DbTransacional, userId: string): Prom
   }));
 }
 
-bets.get("/free-rounds", requireAuth, async (req, res) => {
-  return res.json({ freeRounds: await freeRoundsAtivas(db, req.userId!) });
-});
-
-bets.get("/", requireAuth, async (req, res) => {
-  const { rows } = await db.query(
+export async function listarApostas(db: DbTransacional, userId: string): Promise<BetRow[]> {
+  const { rows } = await db.query<BetRow>(
     `select id, stake, target, roll, payout, server_seed_hash, client_seed, nonce, fund_type, created_at
      from dicebet.bets where user_id = $1 order by created_at desc limit 50`,
-    [req.userId!],
+    [userId],
   );
-  return res.json({ bets: rows });
-});
+  return rows;
+}
+
+/** Contrato que o usecase enxerga (di.ts injeta a implementação ligada ao `db`
+ *  singleton do módulo). */
+export interface ApostaRepository {
+  placeBet(params: {
+    userId: string;
+    seed: SeedParaAposta;
+    nonce: number;
+    stake: number;
+    target: number;
+    roll: number;
+    payout: number;
+    freeRoundId?: string;
+  }): Promise<{ bet: BetRow; balance: number | null; freeRound?: { roundsRestantes: number } }>;
+  freeRoundsAtivas(userId: string): Promise<FreeRoundAtiva[]>;
+  listarApostas(userId: string): Promise<BetRow[]>;
+}
+
+/**
+ * `settleBetSaga`/`freeRoundsAtivas`/`listarApostas` acima seguem exportadas como funções
+ * soltas com `db` por parâmetro (não só `placeBet`) — é o que permite `tests/grants.
+ * integration.test.ts` chamar a MESMA saga com o role restrito da API (ver comentário de
+ * `settleBetSaga`). `createApostaRepository` é a fachada que o `di.ts` usa: liga as três ao
+ * mesmo `db`, no mesmo molde do `aposta-plinko` do plinkofly (`createApostaRepository`
+ * devolvendo todos os métodos do contrato, nunca uma mistura de objeto + função solta).
+ */
+export function createApostaRepository(db: DbTransacional): ApostaRepository {
+  return {
+    placeBet: ({ userId, seed, nonce, stake, target, roll, payout, freeRoundId }) =>
+      settleBetSaga(db, userId, seed, nonce, stake, target, roll, payout, freeRoundId),
+    freeRoundsAtivas: (userId) => freeRoundsAtivas(db, userId),
+    listarApostas: (userId) => listarApostas(db, userId),
+  };
+}

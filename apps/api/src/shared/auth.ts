@@ -8,6 +8,11 @@ import { env } from "./env.js";
  * configuração — um JWKS ou um segredo HS256 (GoTrue local ou hospedado). O que
  * a API exige do token é só o `sub` (identidade) e, se houver, o `email`
  * (username inicial).
+ *
+ * Escopo da migração de arquitetura (E13, este módulo): as rotas EXISTENTES continuam
+ * neste `requireAuth` GoTrue-based — não foram migradas para o token de sessão do RGS
+ * (`requireSessao`, como em plinkofly/roletafly). Só `POST /sessions` (módulo `sessao`)
+ * é novo e aditivo; nada mais passa a exigi-lo. Ver handoff desta rodada.
  */
 const key = env.auth.jwksUrl
   ? createRemoteJWKSet(new URL(env.auth.jwksUrl))

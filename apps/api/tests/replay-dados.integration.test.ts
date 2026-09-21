@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, describe, expect, it } from "vitest";
-import { criarDbTransacional } from "../src/db.js";
+import { criarDbTransacional } from "../src/shared/db.js";
 import { dbApi, sql } from "./helpers/db-teste.js";
 import { OPERADOR_DEMO_ID } from "@kskawarrior/rgs-core";
 

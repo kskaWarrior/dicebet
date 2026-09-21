@@ -23,6 +23,14 @@ if (!jwksUrl === !jwtSecret) {
 export const env = {
   port: Number(process.env.PORT ?? 8080),
   databaseUrl: required("DATABASE_URL"),
+  /** Jogo desta API — usado pelo módulo `sessao` (E13) para validar o `game` na
+   *  configuração do operador (`rgs.operator_configs`). */
+  game: process.env.GAME ?? "dicebet",
+  /** Segredo HS256 com que o RGS assina as sessões de jogo (E13, `POST /sessions`) —
+   *  distinto do GoTrue: o mesmo segredo faria um token de login valer como sessão.
+   *  Só é exigido porque o módulo `sessao` é montado; as rotas existentes continuam em
+   *  `requireAuth`/GoTrue e não dependem disto. */
+  sessionSecret: process.env.RGS_SESSION_SECRET ?? "",
   auth: {
     jwksUrl,
     jwtSecret,

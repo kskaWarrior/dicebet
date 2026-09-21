@@ -1,8 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { OPERADOR_DEMO_ID } from "@kskawarrior/rgs-core";
 import pg from "pg";
-import { criarDbTransacional } from "../../src/db.js";
-import { settleBetSaga, type BetRow, type SeedParaAposta } from "../../src/routes/bets.js";
+import { criarDbTransacional } from "../../src/shared/db.js";
+import {
+  settleBetSaga,
+  type BetRow,
+  type SeedParaAposta,
+} from "../../src/modules/aposta-dice/repository/aposta.repository.js";
 
 // Scaffolding compartilhado pelas suítes de integração. Não casa `*.test.ts`,
 // então nenhum dos dois configs do vitest o coleta.

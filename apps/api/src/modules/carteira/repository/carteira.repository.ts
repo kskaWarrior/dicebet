@@ -1,9 +1,6 @@
 import { OPERADOR_DEMO_ID } from "@kskawarrior/rgs-core";
-import { Router } from "express";
-import { requireAuth } from "../auth.js";
-import { db } from "../db.js";
-
-export const wallet = Router();
+import type { DbTransacional } from "../../../shared/db.js";
+import type { Carteira, TipoTransacao } from "../domain/model/carteira.model.js";
 
 interface LedgerRow {
   id: number;
@@ -14,7 +11,6 @@ interface LedgerRow {
 }
 
 const TIPOS = ["welcome", "refill", "bet", "payout", "rollback"] as const;
-type TipoTransacao = (typeof TIPOS)[number] | "outro";
 
 /**
  * Prefixo do `ref_id` (`bet:dicebet:<seed>:<nonce>` → `bet`, `welcome:…` → `welcome`).
@@ -30,8 +26,7 @@ function tipoDe(refId: string): TipoTransacao {
 // player_ref)`. Nesta etapa 1 o operador é sempre o `demo`. As duas leituras entram por
 // `comOperador` porque a RLS do schema `rgs` falha FECHADA — sem `app.operator_id` na
 // transação, o jogador veria saldo zero em vez do saldo real.
-wallet.get("/", requireAuth, async (req, res) => {
-  const userId = req.userId!;
+export async function consultarCarteira(db: DbTransacional, userId: string): Promise<Carteira | null> {
   const { walletRow, ledger } = await db.comOperador(OPERADOR_DEMO_ID, async (tx) => ({
     // Em série, e não `Promise.all`: as duas rodam no MESMO client da transação, que
     // enfileira uma atrás da outra de qualquer jeito.
@@ -46,8 +41,8 @@ wallet.get("/", requireAuth, async (req, res) => {
       [OPERADOR_DEMO_ID, userId],
     ),
   }));
-  if (!walletRow.rows[0]) return res.status(404).json({ error: "WALLET_NOT_FOUND" });
-  return res.json({
+  if (!walletRow.rows[0]) return null;
+  return {
     balance: Number(walletRow.rows[0].balance_minor),
     transactions: ledger.rows.map((t) => ({
       id: String(t.id),
@@ -56,27 +51,29 @@ wallet.get("/", requireAuth, async (req, res) => {
       balance_after: Number(t.balance_after),
       created_at: t.created_at,
     })),
-  });
-});
+  };
+}
+
+export class RefillNotAllowed extends Error {
+  constructor() {
+    super("REFILL_NOT_ALLOWED");
+  }
+}
 
 // Recarga do operador demo: substitui o depósito Stripe do rollout anterior (ADR-0001
 // deste repo) — a regra (só libera perto de zero) é do operador, não do jogo, e nenhum
 // jogo irmão manteve um processador de pagamento real depois de adotar a carteira da
 // plataforma (docs/adr/0002-carteira-de-rgs.md).
-wallet.post("/refill", requireAuth, async (req, res) => {
-  const userId = req.userId!;
+export async function recarregar(db: DbTransacional, userId: string): Promise<number> {
   try {
-    const balance = await db.comOperador(OPERADOR_DEMO_ID, async (tx) => {
+    return await db.comOperador(OPERADOR_DEMO_ID, async (tx) => {
       const { rows } = await tx.query<{ balance: number }>("select dicebet.apply_refill($1) as balance", [
         userId,
       ]);
-      return rows[0]!.balance;
+      return Number(rows[0]!.balance);
     });
-    res.json({ balance: Number(balance) });
   } catch (error) {
-    if ((error as Error).message.includes("REFILL_NOT_ALLOWED")) {
-      return res.status(409).json({ error: "REFILL_NOT_ALLOWED" });
-    }
+    if ((error as Error).message.includes("REFILL_NOT_ALLOWED")) throw new RefillNotAllowed();
     throw error;
   }
-});
+}
