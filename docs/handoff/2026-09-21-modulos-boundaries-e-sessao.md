@@ -98,3 +98,42 @@ Branch: `e13-sessao-dicebet`. Sem merge, sem push.
    `RGS_SESSION_SECRET` no ambiente.
 3. `POST /sessions/demo` fica para quando (se) a demo migrar para o token de sessão do RGS
    — hoje é decisão consciente de não fazer, não uma lacuna.
+
+## Adendo (2026-09-21): fábrica de `aposta-dice` estava pela metade
+
+Um code review encontrou a fábrica de repositório de `aposta-dice` inconsistente: a
+migração para `db por parâmetro` (ponto acima) tinha ficado documentada só no nível
+"por que a saga toda recebe `db`", mas dentro disso o `di.ts` acabou com dois caminhos de
+acesso diferentes para a mesma dependência — `placeBet` passava por
+`createApostaRepository(db).placeBet(...)`, enquanto `freeRoundsAtivas`/`listarApostas`
+eram chamadas soltas (`freeRoundsAtivasRepo(db, userId)`), e em `seed.repository.ts` o
+`di.ts` recriava `createSeedRepository(db)` a cada chamada de `seedAtual` e chamava
+`rotateSeed`/`seedsRevelados` direto, sem sequer passar pela fábrica.
+
+Comparei com `plinkofly`'s `modules/aposta-plinko/` (repositório irmão mais próximo com o
+mesmo problema — `db`/transação por chamada em vez de fábrica única no módulo): lá
+`createApostaRepository`/`createSeedRepository` sempre devolvem **todos** os métodos do
+contrato (`placeBet`, `history`, `freeRoundsAtivas`; `getOrCreateActiveSeed`, `rotateSeed`,
+`claimNonce`), e o `di.ts` só chama através desse objeto — nunca mistura com função solta.
+
+Apliquei a mesma forma em `aposta-dice`, mantendo a restrição real (GRANTs): as funções
+`settleBetSaga`, `freeRoundsAtivas`, `listarApostas` (`aposta.repository.ts`) e
+`getOrCreateActiveSeed`, `claimNonce`, `rotateSeed`, `seedsRevelados`
+(`seed.repository.ts`) continuam exportadas soltas, recebendo `db`/`DbTransacional` por
+parâmetro — é o que `tests/helpers/db-teste.ts` usa para chamar `settleBetSaga` com o role
+restrito `dicebet_api` em `tests/grants.integration.test.ts`. O que mudou:
+
+- `ApostaRepository` ganhou `freeRoundsAtivas`/`listarApostas`; `createApostaRepository(db)`
+  agora devolve os três métodos ligados ao mesmo `db`.
+- `SeedRepository` ganhou `rotateSeed`/`seedsRevelados`; `createSeedRepository(db)` agora
+  devolve os quatro métodos ligados ao mesmo `db`.
+- `di.ts` constrói `seedRepository`/`apostaRepository` uma vez (no carregamento do módulo,
+  como já era para o usecase) e todo membro de `apostaDiceDi` chama através desses dois
+  objetos — nenhum acesso solto restante.
+
+Resultado: um único formato de acesso ao repositório dentro do módulo (fábrica ligada ao
+`db`, todos os métodos do contrato por ela), com a exceção documentada permanecendo só nas
+funções soltas que os testes de GRANTs precisam — não mais uma mistura silenciosa dentro do
+próprio `di.ts`. `npm run typecheck`, `npm run lint` e `npm test` passam; `npm run
+test:integration -w apps/api` também passa (7 arquivos, 34 testes), incluindo
+`tests/grants.integration.test.ts`.
