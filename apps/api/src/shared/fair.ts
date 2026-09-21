@@ -18,11 +18,19 @@ export function hashServerSeed(serverSeed: string): string {
   return createHash("sha256").update(serverSeed).digest("hex");
 }
 
+/**
+ * Raw HMAC-SHA256 digest for (serverSeed, clientSeed, nonce), exposed for external
+ * sampling (NIST SP 800-22 / Dieharder statistical randomness tests, epic E14).
+ * `computeRoll` only consumes the first 4 bytes; external consumers can use the
+ * full digest.
+ */
+export function rollDigest(serverSeed: string, clientSeed: string, nonce: number): Buffer {
+  return createHmac("sha256", serverSeed).update(`${clientSeed}:${nonce}`).digest();
+}
+
 /** Roll in [0, 100) with two decimals, deterministic in (serverSeed, clientSeed, nonce). */
 export function computeRoll(serverSeed: string, clientSeed: string, nonce: number): number {
-  const digest = createHmac("sha256", serverSeed)
-    .update(`${clientSeed}:${nonce}`)
-    .digest();
+  const digest = rollDigest(serverSeed, clientSeed, nonce);
   const n = digest.readUInt32BE(0); // 0 .. 2^32-1
   return Math.floor((n / 2 ** 32) * 10000) / 100;
 }
