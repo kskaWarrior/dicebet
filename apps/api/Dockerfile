@@ -8,6 +8,7 @@ COPY package.json ./
 # da imagem) — o .npmrc de projeto, e não `npm config set`, porque o segredo monta sobre
 # /root/.npmrc.
 RUN echo '@kskawarrior:registry=https://npm.pkg.github.com' > .npmrc
+RUN npm install -g npm@11
 RUN --mount=type=secret,id=npmrc,target=/root/.npmrc npm install
 COPY tsconfig.json ./
 COPY src ./src

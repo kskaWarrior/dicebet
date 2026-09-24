@@ -12,6 +12,7 @@ COPY apps/web/package.json apps/web/
 # privado do apps/api (rollout RGS, docs/adr/0002-carteira-de-rgs.md) — mesmo
 # segredo do apps/api/Dockerfile.
 RUN echo '@kskawarrior:registry=https://npm.pkg.github.com' > .npmrc
+RUN npm install -g npm@11
 RUN --mount=type=secret,id=npmrc,target=/root/.npmrc npm ci
 COPY apps/web apps/web
 # Embutidas no bundle (ssr: false).
