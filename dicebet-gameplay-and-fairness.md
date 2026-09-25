@@ -4,12 +4,12 @@ This is a **roll-under** dice game, not a physical six-sided die: the "roll" is 
 
 ## The bet
 
-1. Player picks a **target** `T` in `[1, 98]` — this doubles as their implied win chance (`T`%).
+1. Player picks a **target** `T` — this doubles as their implied win chance (`T`%). The API accepts `1.00`–`98.00` in `0.01` steps (`z.number().multipleOf(0.01)` in [`apostas.route.ts`](apps/api/src/modules/aposta-dice/route/apostas.route.ts)); the web UI slider only offers integers 1–98.
 2. Player picks a **stake**: from 50 cents to 1,000.00 (50–100 000 minor units), enforced by the API and by `dicebet.validate_bet` ([`calcular-resultado.usecase.ts`](apps/api/src/modules/aposta-dice/domain/usecase/calcular-resultado.usecase.ts), [migration 20260925000001](db/migrations/20260925000001_aposta_minima.sql)). The player's own limits (max stake, daily bets, daily loss, session length) and self-exclusion can refuse a bet — see [ADR-0003](docs/adr/0003-jogo-responsavel-paridade-roletafly.md).
 3. Server generates a **roll** `R` in `[0, 100)`, two decimals.
 4. **Win** if `R < T`. Payout is `stake × (99 / T)`.
 
-Source: [`apps/api/src/dice.ts`](apps/api/src/dice.ts)
+Source: [`calcular-resultado.usecase.ts`](apps/api/src/modules/aposta-dice/domain/usecase/calcular-resultado.usecase.ts)
 
 ```ts
 export const MIN_TARGET = 1;
@@ -23,6 +23,8 @@ export function multiplierFor(target: number): number {
 
 A fair multiplier would be `100 / T` (win chance `T%` → payout `100/T`x). Paying `99 / T` instead bakes in a flat **1% house edge** regardless of the target chosen — low-target/high-multiplier "moonshot" bets and high-target/low-multiplier "safe" bets are taxed equally.
 
+That 1% is the theoretical edge. The payout is floored to whole cents (`Math.floor` in `payoutFor`), so the effective RTP depends on the stake: at the minimum stake of R$ 0,50 it is **≥ 97,06%** (worst target 97,06), approaching 99% at larger stakes — see [dossier 02, "Efeito do truncamento"](docs/certificacao/02-memorial-rtp.md).
+
 | Target (win chance) | Multiplier | $1 stake pays |
 |---|---|---|
 | 2 | 49.5000x | $49.50 |
@@ -33,7 +35,7 @@ A fair multiplier would be `100 / T` (win chance `T%` → payout `100/T`x). Payi
 
 ## Provable fairness
 
-Source: [`apps/api/src/fair.ts`](apps/api/src/fair.ts)
+Source: [`apps/api/src/shared/fair.ts`](apps/api/src/shared/fair.ts)
 
 - Before any bet, the server commits to `sha256(serverSeed)` — published to the player up front.
 - Each roll is deterministic: `HMAC-SHA256(serverSeed, "${clientSeed}:${nonce}")`, and the first 4 bytes of that digest map to a roll in `[0, 100)`.
@@ -45,7 +47,7 @@ Source: [`apps/api/src/fair.ts`](apps/api/src/fair.ts)
 
 Source: [`apps/web/pages/index.vue`](apps/web/pages/index.vue)
 
-- A slider sets the target (1–98), a number input sets the stake.
+- A slider sets the target (integers 1–98, `step="1"`; the API also accepts two-decimal targets), a number input sets the stake.
 - On roll: a ~1.4s "suspense" window plays a shake sound and ticks a random number in the result area (a static 🎲 emoji today), then reveals the real roll and win/lose state.
 - Sound is fully synthesized with Web Audio ([`apps/web/composables/useDiceAudio.ts`](apps/web/composables/useDiceAudio.ts)) — clustered noise-burst "ice hits" during the shake, a low knock on the throw, a two-note chime on a win, a low thud on a loss. No audio assets to load.
 - `prefers-reduced-motion` skips the shake animation and ticker entirely, jumping straight to the result.

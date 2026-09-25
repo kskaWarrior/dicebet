@@ -27,13 +27,18 @@ as fontes de onde foi compilada; as fontes continuam sendo a verdade.
 
 ## Discrepâncias entre documentação e código
 
-- [dicebet-gameplay-and-fairness.md](../../dicebet-gameplay-and-fairness.md) cita
-  `apps/api/src/dice.ts` e `apps/api/src/fair.ts`; os arquivos atuais são
+Corrigidas em [dicebet-gameplay-and-fairness.md](../../dicebet-gameplay-and-fairness.md)
+(branch `rtp-perfil`):
+
+- ~~cita `apps/api/src/dice.ts` e `apps/api/src/fair.ts`~~ — corrigido: agora aponta para
   `modules/aposta-dice/domain/usecase/calcular-resultado.usecase.ts` e `shared/fair.ts`.
-- O mesmo documento diz alvo "em `[1, 98]`" como slider inteiro; a API aceita passos de
-  0,01 ([`apostas.route.ts`](../../apps/api/src/modules/aposta-dice/route/apostas.route.ts)).
-- "1% house edge" é o teórico; o RTP efetivo depende da stake (02, "Efeito do
-  truncamento"), entre 97,06 % e 99 % desde a aposta mínima de R$ 0,50.
+- ~~alvo "em `[1, 98]`" como slider inteiro~~ — corrigido: o documento diz que a API aceita
+  1,00–98,00 em passos de 0,01
+  ([`apostas.route.ts`](../../apps/api/src/modules/aposta-dice/route/apostas.route.ts)) e que
+  a UI oferece só inteiros.
+- ~~"1% house edge" sem ressalva~~ — corrigido: o documento registra que é o teórico e que o
+  RTP na aposta mínima de R$ 0,50 é ≥ 97,06 % por causa do truncamento em centavos (02,
+  "Efeito do truncamento").
 
 ## Pendências antes da submissão
 
