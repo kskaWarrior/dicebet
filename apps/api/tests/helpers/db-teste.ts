@@ -59,7 +59,7 @@ export async function createTestUser(prefixo = "dice-test") {
 
 // Sem `auth.users` não há cascade: apaga na ordem das FKs, nos dois schemas.
 export async function deleteTestUser(userId: string) {
-  for (const tabela of ["bets", "user_seeds"]) {
+  for (const tabela of ["bets", "user_seeds", "player_limits", "audit_events"]) {
     await sql.query(`delete from dicebet.${tabela} where user_id = $1`, [userId]);
   }
   await sql.query("delete from dicebet.profiles where id = $1", [userId]);

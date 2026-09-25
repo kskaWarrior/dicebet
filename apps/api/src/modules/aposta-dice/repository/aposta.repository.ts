@@ -16,6 +16,12 @@ const KNOWN_ERRORS: Record<string, number> = {
   INSUFFICIENT_FUNDS: 422,
   INVALID_STAKE: 400,
   NONCE_ALREADY_USED: 409,
+  // Jogo responsável (migration 20260925000002, docs/adr/0003): `settle_bet` recusa DENTRO
+  // da saga, que estorna o débito. 403 como no roletafly: o pedido é válido, o jogador é
+  // que está impedido de apostar agora.
+  SELF_EXCLUDED: 403,
+  LIMIT_EXCEEDED: 403,
+  SESSION_LIMIT: 403,
   // E9: rodada grátis. UNKNOWN_FREE_ROUND é 404 (não existe/não é deste jogador/jogo,
   // mesmo tratamento de "não encontrado" que o resto da API usa); os outros três estados
   // da concessão (vencida, cancelada, esgotada) são 409 — a concessão existe, mas não
