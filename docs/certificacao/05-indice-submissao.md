@@ -27,29 +27,33 @@ as fontes de onde foi compilada; as fontes continuam sendo a verdade.
 
 ## Discrepâncias entre documentação e código
 
-- [dicebet-gameplay-and-fairness.md](../../dicebet-gameplay-and-fairness.md) cita
-  `apps/api/src/dice.ts` e `apps/api/src/fair.ts`; os arquivos atuais são
+Corrigidas em [dicebet-gameplay-and-fairness.md](../../dicebet-gameplay-and-fairness.md)
+(branch `rtp-perfil`):
+
+- ~~cita `apps/api/src/dice.ts` e `apps/api/src/fair.ts`~~ — corrigido: agora aponta para
   `modules/aposta-dice/domain/usecase/calcular-resultado.usecase.ts` e `shared/fair.ts`.
-- O mesmo documento diz alvo "em `[1, 98]`" como slider inteiro; a API aceita passos de
-  0,01 ([`apostas.route.ts`](../../apps/api/src/modules/aposta-dice/route/apostas.route.ts)).
-- "1% house edge" é o teórico; o RTP efetivo depende da stake (02, "Efeito do
-  truncamento"), entre 97,06 % e 99 % desde a aposta mínima de R$ 0,50.
+- ~~alvo "em `[1, 98]`" como slider inteiro~~ — corrigido: o documento diz que a API aceita
+  1,00–98,00 em passos de 0,01
+  ([`apostas.route.ts`](../../apps/api/src/modules/aposta-dice/route/apostas.route.ts)) e que
+  a UI oferece só inteiros.
+- ~~"1% house edge" sem ressalva~~ — corrigido: o documento registra que é o teórico e que o
+  RTP na aposta mínima de R$ 0,50 é ≥ 97,06 % por causa do truncamento em centavos (02,
+  "Efeito do truncamento").
 
 ## Pendências antes da submissão
 
 1. Rodada completa (≥ 10⁸ bits) do Dieharder e do NIST SP 800-22 sobre `rollDigest`, com
    seed e saída anexadas à peça 01
    ([próximos passos do E14](../../../rgs/docs/handoff/2026-09-21-e14-proximos-passos.md)).
-2. Registrar o perfil de RTP do DiceBet em `rgs.game_rtp_profiles` (não encontrado).
-3. Escrever `GAME-MATH.md` e `COMPLIANCE.md` (hoje inexistentes).
-4. Fixture de vetores golden compartilhada entre `fair.ts` e `fairness.vue` (peça 01).
-5. Relatório de RTP realizado com volume de homologação (peça 02) e reconferência das
+2. Escrever `GAME-MATH.md` e `COMPLIANCE.md` (hoje inexistentes).
+3. Fixture de vetores golden compartilhada entre `fair.ts` e `fairness.vue` (peça 01).
+4. Relatório de RTP realizado com volume de homologação (peça 02) e reconferência das
    portarias no gov.br (peça 04).
-6. Conferir nos operadores reais (não só no de demonstração) que nenhuma campanha de
+5. Conferir nos operadores reais (não só no de demonstração) que nenhuma campanha de
    rodada grátis ativa tem stake abaixo de 50 centavos: desde a
    [migration 20260925000001](../../db/migrations/20260925000001_aposta_minima.sql) ela
    seria recusada com `INVALID_STAKE`.
-7. Revisão externa por pessoa com experiência em certificação, fora do time (spec E14,
+6. Revisão externa por pessoa com experiência em certificação, fora do time (spec E14,
    US15).
 
 Resolvidos pelo [ADR-0003](../adr/0003-jogo-responsavel-paridade-roletafly.md): RTP abaixo
