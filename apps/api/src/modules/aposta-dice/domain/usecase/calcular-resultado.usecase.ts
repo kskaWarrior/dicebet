@@ -8,6 +8,20 @@ export const MIN_TARGET = 1;
 export const MAX_TARGET = 98;
 export const HOUSE_EDGE_NUMERATOR = 99;
 
+/**
+ * Stake por aposta, em centavos. O mínimo de 50 (R$ 0,50) existe por causa do RTP: com o
+ * `floor` abaixo, uma stake de poucos centavos perde até 1 centavo por vitória, e de 1 a 6
+ * centavos o pior alvo ficava abaixo do piso de 85 % da Portaria SPA/MF 1.207/2024. Com 50
+ * centavos o pior caso é 97,06 % (docs/certificacao/02-memorial-rtp.md). O banco aplica o
+ * mesmo intervalo em `dicebet.validate_bet` (migration 20260925000001) — é a autoridade.
+ */
+export const MIN_STAKE_CENTS = 50;
+export const MAX_STAKE_CENTS = 100_000;
+
+export function stakeValida(stakeCents: number): boolean {
+  return Number.isInteger(stakeCents) && stakeCents >= MIN_STAKE_CENTS && stakeCents <= MAX_STAKE_CENTS;
+}
+
 export function multiplierFor(target: number): number {
   return HOUSE_EDGE_NUMERATOR / target;
 }

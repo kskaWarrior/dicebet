@@ -37,6 +37,15 @@ describe("grants do role dicebet_api", () => {
     expect((await rpc("validate_bet", [100])).error).toBeNull();
   });
 
+  // Migration 20260925000001: aposta mínima de R$ 0,50 e o teto de 100 000 centavos também
+  // no banco, não só no zod da rota.
+  it("validate_bet aplica mínimo de 50 e máximo de 100 000 centavos", async () => {
+    expect((await rpc("validate_bet", [49])).error?.message).toContain("INVALID_STAKE");
+    expect((await rpc("validate_bet", [50])).error).toBeNull();
+    expect((await rpc("validate_bet", [100_000])).error).toBeNull();
+    expect((await rpc("validate_bet", [100_001])).error?.message).toContain("INVALID_STAKE");
+  });
+
   it("use_next_nonce devolve o nonce antigo e null para seed inativo", async () => {
     const { rows } = await dbApi.query<{ id: string }>(
       `insert into dicebet.user_seeds (user_id, server_seed, server_seed_hash, client_seed)

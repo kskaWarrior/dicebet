@@ -197,7 +197,7 @@ async function refill() {
 
     <label>
       {{ t("game.stake") }}
-      <input v-model.number="stakeDollars" type="number" min="0.01" max="1000" step="0.01" :disabled="rolling" />
+      <input v-model.number="stakeDollars" type="number" min="0.5" max="1000" step="0.01" :disabled="rolling" />
     </label>
 
     <p class="hint">{{ t("game.winPays", { amount: formatCents(potentialWin) }) }}</p>
