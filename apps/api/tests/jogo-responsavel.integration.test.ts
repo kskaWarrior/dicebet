@@ -152,11 +152,12 @@ describe("jogo responsável", () => {
       await limites(userId, 300, null, null, null);
       await limites(userId, 500, null, null, null);
       const { rows } = await sql.query(
-        `select dicebet.limits_loosenable_at(l) - l.limits_loosened_at as carencia
+        // Em segundos: o Postgres normaliza o intervalo como `1 day`, não `24:00:00`.
+        `select extract(epoch from dicebet.limits_loosenable_at(l) - l.limits_loosened_at)::int as carencia_s
            from dicebet.player_limits l where user_id = $1`,
         [userId],
       );
-      expect(rows[0].carencia).toMatchObject({ hours: 24 });
+      expect(rows[0].carencia_s).toBe(24 * 60 * 60);
     });
 
     it("zero e negativo são recusados (só null é 'sem limite')", async () => {
