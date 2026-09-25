@@ -142,6 +142,20 @@ try {
       to dicebet_api;
   `);
   console.log("grants de dicebet_api ok");
+
+  // Declaração deste jogo no schema da plataforma, reafirmada a cada execução como os
+  // grants acima: o schema `rgs` pertence ao outro repo e um `--reset` de lá a apagaria.
+  // RTP 99 % (payout = stake · 99/target, docs/certificacao/02-memorial-rtp.md). Sem esta
+  // linha `rgs.operator_configs` não aceita config para `dicebet` (FK composta para
+  // `game_rtp_profiles`, decisão A.9) — mesma receita de roletafly/crashfly/plinkofly.
+  await client.query(`
+    insert into rgs.game_rtp_profiles (game, rtp_profile)
+    values ('dicebet', 'padrao-99') on conflict do nothing;
+    insert into rgs.operator_configs (operator_id, game, currency, locales, rtp_profile)
+    values ('00000000-0000-0000-0000-000000000001', 'dicebet', 'BRL', '{pt-BR,en-US}', 'padrao-99')
+    on conflict do nothing;
+  `);
+  console.log("perfil de RTP e config do operador demo ok");
 } finally {
   await client.end();
 }

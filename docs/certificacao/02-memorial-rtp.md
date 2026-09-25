@@ -7,11 +7,12 @@ pagamento, porque o DiceBet **não tem `GAME-MATH.md`** (ver
 
 ## Perfil de RTP declarado
 
-RTP teórico **99 %** (margem da casa 1 %), único, sem calibração por operador. Não foi
-encontrado registro do DiceBet em `rgs.game_rtp_profiles`/`rgs.operator_configs` — nem em
-[`db/migrate.mjs`](../../db/migrate.mjs), nem nas migrations do `rgs` (tabela criada em
-[`20260916000001_operadores_e_sessoes.sql`](../../../rgs/db/migrations/20260916000001_operadores_e_sessoes.sql)).
-Pendência em [05-indice-submissao.md](05-indice-submissao.md).
+RTP teórico **99 %** (margem da casa 1 %), único, sem calibração por operador. Perfil
+`padrao-99`, registrado para o jogo e para o operador `demo` em
+[`db/migrate.mjs`](../../db/migrate.mjs) (tabelas `rgs.game_rtp_profiles` e
+`rgs.operator_configs`, criadas em
+[`20260916000001_operadores_e_sessoes.sql`](../../../rgs/db/migrations/20260916000001_operadores_e_sessoes.sql)),
+reafirmado a cada execução do migrate como nos demais jogos.
 
 ## Espaço amostral
 
