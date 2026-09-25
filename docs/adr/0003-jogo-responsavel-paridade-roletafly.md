@@ -67,6 +67,15 @@ diferente do `/justica` do roletafly, ela também rotaciona a seed pela API.
 - Rodadas grátis passam pelos mesmos limites (como no roletafly) e pelo mesmo
   `validate_bet`: uma campanha com stake travada abaixo de 50 centavos passa a ser
   recusada.
+- As recusas `SELF_EXCLUDED`, `LIMIT_EXCEEDED` e `SESSION_LIMIT` saem de dentro de
+  `settle_bet`, **depois** do débito na carteira: o pedido de um autoexcluído ainda chega
+  à carteira (débito e estorno). O saldo líquido não muda, mas há o vaivém. É o mesmo
+  desenho do roletafly; uma leitura prévia na rota de aposta (antes do débito) evitaria
+  esse vaivém e fica como melhoria opcional, sem mudar a regra, que continua na RPC.
+- Perda diária e apostas diárias somam **todos** os `fund_type` (`real`, `bonus`,
+  `free_round`), não só dinheiro real. É a mesma regra do roletafly: em
+  `20260919000018` as somas sobre `roleta.roleta_giros` não filtram `fund_type`.
+  Leitura mais estrita que "só dinheiro real", adotada de propósito por paridade.
 - A atestação 18+ é registrada no servidor mas **não** é exigida por `settle_bet` —
   paridade com o roletafly, onde o gate também é da casca. Quem chamar a API direto sem
   passar pelo web não é barrado por idade; fechar isso é trabalho da plataforma (KYC).
