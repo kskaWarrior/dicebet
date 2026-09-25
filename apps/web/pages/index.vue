@@ -138,8 +138,17 @@ async function roll(freeRoundId?: string, stakeCentsOverride?: number) {
       playLose();
     }
   } catch (e: any) {
-    error.value =
-      e?.data?.error === "INSUFFICIENT_FUNDS" ? t("game.errInsufficient") : t("game.errFailed");
+    const code = e?.data?.error;
+    // Recusas de jogo responsável (settle_bet, migration 20260925000002) e a aposta mínima.
+    const mensagens: Record<string, string> = {
+      INSUFFICIENT_FUNDS: t("game.errInsufficient"),
+      INVALID_STAKE: t("game.errMinStake"),
+      INVALID_BET: t("game.errMinStake"),
+      SELF_EXCLUDED: t("game.errSelfExcluded"),
+      LIMIT_EXCEEDED: t("game.errLimit"),
+      SESSION_LIMIT: t("game.errSession"),
+    };
+    error.value = mensagens[code] ?? t("game.errFailed");
   } finally {
     if (ticker) clearInterval(ticker);
     rolling.value = false;
@@ -197,7 +206,7 @@ async function refill() {
 
     <label>
       {{ t("game.stake") }}
-      <input v-model.number="stakeDollars" type="number" min="0.01" max="1000" step="0.01" :disabled="rolling" />
+      <input v-model.number="stakeDollars" type="number" min="0.5" max="1000" step="0.01" :disabled="rolling" />
     </label>
 
     <p class="hint">{{ t("game.winPays", { amount: formatCents(potentialWin) }) }}</p>

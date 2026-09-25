@@ -1,0 +1,54 @@
+import { mkdirSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+import { ROTAS_SEM_GATE_MAIORIDADE, exigeGateMaioridade } from "../shared/rotas-sem-gate-maioridade.js";
+
+// O gate 18+ mora na casca (`app.vue`), o único ponto por onde toda rota passa — mesmo
+// desenho do roletafly (apps/web/tests/gate-maioridade-cobre-tudo.test.ts). O teste roda
+// sobre a REGRA, não sobre o texto-fonte da casca, e cruza as páginas REAIS com ela: uma
+// página nova nasce coberta, e isentá-la exige dizer isso na lista.
+// Recursivo: `pages/x/index.vue` vira `/x` e `pages/x/y.vue` vira `/x/y`, como no Nuxt.
+function rotasDasPaginas(dir: string): string[] {
+  return readdirSync(dir, { recursive: true, encoding: "utf8" })
+    .map((f) => f.replaceAll("\\", "/"))
+    .filter((f) => f.endsWith(".vue"))
+    .map((f) => {
+      const semExt = f.replace(/\.vue$/, "").replace(/(^|\/)index$/, "");
+      return `/${semExt}`;
+    });
+}
+
+const dirPages = join(import.meta.dirname, "..", "pages");
+const rotas = rotasDasPaginas(dirPages);
+
+describe("gate de maioridade", () => {
+  it("enxerga páginas em subpastas", () => {
+    const dir = mkdtempSync(join(tmpdir(), "pages-"));
+    mkdirSync(join(dir, "x"));
+    for (const f of ["index.vue", "a.vue", "x/index.vue", "x/y.vue"]) writeFileSync(join(dir, f), "");
+    expect(rotasDasPaginas(dir).sort()).toEqual(["/", "/a", "/x", "/x/y"]);
+  });
+
+  it("cobre toda página que não esteja explicitamente isenta", () => {
+    expect(rotas.length, "não achei as páginas — o diretório mudou de lugar?").toBeGreaterThan(4);
+    const cobertas = rotas.filter((rota) => exigeGateMaioridade(false, rota));
+    expect(cobertas.sort()).toEqual(["/", "/fairness", "/history", "/limits"]);
+  });
+
+  it("atestado, nenhuma página exige o gate", () => {
+    expect(rotas.filter((rota) => exigeGateMaioridade(true, rota))).toEqual([]);
+  });
+
+  // `/login`: a atestação vem depois de entrar (é gravada no servidor, na conta).
+  // `/responsible-gaming`: ajuda e autoexclusão — exigir declaração de idade de quem
+  // procura ajuda seria regressão; o gate barra o JOGO, não a saída dele.
+  // `/fairness` NÃO é isenta, ao contrário do `/justica` do roletafly: aqui a página também
+  // rotaciona a seed pela API, como o `/seeds` do roletafly, que é gateado.
+  it("isenta só o login e a página de ajuda/autoexclusão", () => {
+    expect([...ROTAS_SEM_GATE_MAIORIDADE].sort()).toEqual(["/login", "/responsible-gaming"]);
+    for (const isenta of ROTAS_SEM_GATE_MAIORIDADE) {
+      expect(exigeGateMaioridade(false, isenta), isenta).toBe(false);
+    }
+  });
+});

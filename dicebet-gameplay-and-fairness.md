@@ -5,7 +5,7 @@ This is a **roll-under** dice game, not a physical six-sided die: the "roll" is 
 ## The bet
 
 1. Player picks a **target** `T` in `[1, 98]` — this doubles as their implied win chance (`T`%).
-2. Player picks a **stake**.
+2. Player picks a **stake**: from 50 cents to 1,000.00 (50–100 000 minor units), enforced by the API and by `dicebet.validate_bet` ([`calcular-resultado.usecase.ts`](apps/api/src/modules/aposta-dice/domain/usecase/calcular-resultado.usecase.ts), [migration 20260925000001](db/migrations/20260925000001_aposta_minima.sql)). The player's own limits (max stake, daily bets, daily loss, session length) and self-exclusion can refuse a bet — see [ADR-0003](docs/adr/0003-jogo-responsavel-paridade-roletafly.md).
 3. Server generates a **roll** `R` in `[0, 100)`, two decimals.
 4. **Win** if `R < T`. Payout is `stake × (99 / T)`.
 

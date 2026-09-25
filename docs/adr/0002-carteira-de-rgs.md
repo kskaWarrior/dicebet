@@ -29,7 +29,8 @@ com liquidação atômica.
    chamada ANTES do débito) + `settle_bet` (guarda de replay + registro da aposta — sem
    lock de carteira, sem ledger). Na MESMA migração: schema `public` → `dicebet`
    (namespacing, como os irmãos).
-2. **Sem responsabilidade de jogo (RG) nova**: o DiceBet nunca teve `player_limits`,
+2. **[Substituído pelo [ADR-0003](0003-jogo-responsavel-paridade-roletafly.md) em 2026-09-25]**
+   **Sem responsabilidade de jogo (RG) nova**: o DiceBet nunca teve `player_limits`,
    autoexclusão ou limites diários — o handoff de 2026-09-14 (Fases M-A/M-B) já cortou
    esse escopo deliberadamente ("só o que o RGS não vai refazer"). O LuckyTiger manteve
    `player_limits` porque já os tinha desde antes do rollout; inventar RG agora seria
@@ -95,4 +96,5 @@ com liquidação atômica.
 - As portas 52321/52322 (GoTrue/Postgres próprios do DiceBet) ficam livres; o jogo passa
   a compartilhar 57331/57332 com os irmãos.
 - Sem `player_limits`/autoexclusão: se um regulador ou a plataforma exigirem RG por jogo
-  no DiceBet, é trabalho novo — não um retrofit escondido nesta migração.
+  no DiceBet, é trabalho novo — não um retrofit escondido nesta migração. (Feito no
+  [ADR-0003](0003-jogo-responsavel-paridade-roletafly.md).)

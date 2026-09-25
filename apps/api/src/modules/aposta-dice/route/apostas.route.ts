@@ -1,13 +1,13 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../../../shared/auth.js";
-import { MAX_TARGET, MIN_TARGET } from "../domain/usecase/calcular-resultado.usecase.js";
+import { MAX_STAKE_CENTS, MAX_TARGET, MIN_STAKE_CENTS, MIN_TARGET } from "../domain/usecase/calcular-resultado.usecase.js";
 import { apostaDiceDi } from "../di.js";
 
 export const apostasRouter = Router();
 
 const placeBetSchema = z.object({
-  stake: z.number().int().min(1).max(1_000_00), // centavos, máx $1000 por aposta
+  stake: z.number().int().min(MIN_STAKE_CENTS).max(MAX_STAKE_CENTS), // centavos: 0,50 a 1 000,00
   target: z.number().multipleOf(0.01).min(MIN_TARGET).max(MAX_TARGET),
   // E9: consome uma rodada de uma concessão de rodadas grátis em vez de debitar.
   freeRoundId: z.string().uuid().optional(),

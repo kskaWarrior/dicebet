@@ -3,6 +3,7 @@ import cors from "cors";
 import express from "express";
 import { apostasRouter } from "./modules/aposta-dice/route/apostas.route.js";
 import { seedsRouter } from "./modules/aposta-dice/route/seeds.route.js";
+import { jogoResponsavelRouter } from "./modules/jogo-responsavel/route/jogo-responsavel.route.js";
 import { carteiraRouter } from "./modules/carteira/route/carteira.route.js";
 import { sessaoRouter } from "./modules/sessao/route/sessao.route.js";
 import { env } from "./shared/env.js";
@@ -41,6 +42,8 @@ export function criarApp() {
   app.use("/bets", apostasRouter);
   app.use("/seeds", seedsRouter);
   app.use("/wallet", carteiraRouter);
+  // Limites do apostador, autoexclusão e atestação 18+ (docs/adr/0003).
+  app.use("/responsible-gaming", jogoResponsavelRouter);
 
   // Express 5 forwards rejected async handlers here instead of crashing.
   app.use(

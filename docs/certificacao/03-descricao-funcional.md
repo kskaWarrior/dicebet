@@ -25,11 +25,30 @@ virtual de demonstração, sem dinheiro real ([README.md](../../README.md), "Avi
 
 ## Limites
 
-Stake de 1 a 100 000 centavos por aposta, uma aposta por requisição, sem teto de prêmio
-(máximo possível 9 900 000 centavos) —
-[`apostas.route.ts`](../../apps/api/src/modules/aposta-dice/route/apostas.route.ts).
-**Não há limites do apostador nem autoexclusão**: decisão explícita registrada em
-[ADR-0002](../adr/0002-carteira-de-rgs.md), item 2.
+Stake de **50 a 100 000 centavos** (R$ 0,50 a R$ 1 000,00) por aposta, uma aposta por
+requisição, sem teto de prêmio (máximo possível 9 900 000 centavos) —
+[`apostas.route.ts`](../../apps/api/src/modules/aposta-dice/route/apostas.route.ts) e
+`validate_bet` ([migration 20260925000001](../../db/migrations/20260925000001_aposta_minima.sql)).
+
+Jogo responsável ([ADR-0003](../adr/0003-jogo-responsavel-paridade-roletafly.md), que
+substitui o item 2 do ADR-0002; [migration 20260925000002](../../db/migrations/20260925000002_jogo_responsavel.sql)),
+aplicado dentro de `settle_bet`, com a saga estornando o débito de uma aposta recusada:
+
+- **Limites do apostador**: aposta máxima, apostas diárias e perda diária (janela móvel de
+  24h; a perda conta a aposta corrente como perdida) e limite de sessão contínua (nova
+  sessão depois de 30 min sem apostar). `null` = sem limite; zero é recusado. Página
+  [`limits.vue`](../../apps/web/pages/limits.vue).
+- **Carência ao afrouxar**: apertar vale na hora; afrouxar qualquer limite (inclusive
+  removê-lo) só é aceito 24h depois do último afrouxamento, de forma global; a tela avisa
+  a data antes da tentativa.
+- **Autoexclusão**: 30, 90, 180 ou 365 dias, com a palavra `AUTOEXCLUIR` digitada;
+  enquanto vigora não pode ser encurtada, só estendida
+  ([`responsible-gaming.vue`](../../apps/web/pages/responsible-gaming.vue)).
+- **Gate 18+** na casca do web ([`app.vue`](../../apps/web/app.vue)), em todas as páginas
+  exceto `/login` e `/responsible-gaming`
+  ([`rotas-sem-gate-maioridade.ts`](../../apps/web/shared/rotas-sem-gate-maioridade.ts));
+  a declaração é gravada na conta (`profiles.age_attested_at`).
+- **Relógio de sessão** no menu, com destaque a partir de 80 % do limite.
 
 ## Fluxo de sessão e aposta
 
@@ -55,7 +74,11 @@ Códigos devolvidos pela API ([`apostas.route.ts`](../../apps/api/src/modules/ap
 `INVALID_BET` (400, corpo inválido), `INVALID_STAKE` (400), `INSUFFICIENT_FUNDS` (422),
 `NONCE_ALREADY_USED` (409), `UNKNOWN_FREE_ROUND` (404), `FREE_ROUND_EXPIRED`,
 `FREE_ROUND_CANCELLED`, `FREE_ROUND_EXHAUSTED` (409), `FREE_ROUND_STAKE_MISMATCH` (400),
-`BET_FAILED` (500), `INVALID_CLIENT_SEED` (400). `SEED_NOT_ACTIVE`
+`SELF_EXCLUDED`, `LIMIT_EXCEEDED`, `SESSION_LIMIT` (403, jogo responsável),
+`BET_FAILED` (500), `INVALID_CLIENT_SEED` (400). Jogo responsável
+([`jogo-responsavel.route.ts`](../../apps/api/src/modules/jogo-responsavel/route/jogo-responsavel.route.ts)):
+`LOOSENING_TOO_SOON`, `SHORTENING_SELF_EXCLUSION` (409), `INVALID_PERIOD`,
+`INVALID_LIMIT`, `INVALID_BODY` (400). `SEED_NOT_ACTIVE`
 ([`seed.repository.ts`](../../apps/api/src/modules/aposta-dice/repository/seed.repository.ts)) não é
 mapeado e chega ao cliente como `BET_FAILED` (500). Sessão:
 `INVALID_BODY`, `DEMO_REQUIRES_AUTH`, `OPERATOR_NOT_CONFIGURED` (400),
@@ -72,3 +95,6 @@ o dinheiro passa pelo ledger append-only `rgs.ledger` ([ADR-0002](../adr/0002-ca
 o evento `round.settled` é emitido pela RPC
 ([migration 0005](../../db/migrations/0005_evento_round_settled.sql)) e o replay por
 rodada é consultável pela retaguarda ([migration 0006](../../db/migrations/0006_replay_dados.sql)).
+Mudanças de limite (dizendo se afrouxaram), autoexclusões e atestações de idade ficam na
+trilha interna `dicebet.audit_events`
+([migration 20260925000002](../../db/migrations/20260925000002_jogo_responsavel.sql)).
