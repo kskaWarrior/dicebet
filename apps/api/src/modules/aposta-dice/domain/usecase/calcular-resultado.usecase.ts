@@ -1,5 +1,6 @@
 /**
- * Dice rules: pick a target in [1, 98]; you win if the roll is strictly
+ * Dice rules: pick a target in [1.00, 98.00] in 0.01 steps (the UI offers whole
+ * numbers); you win if the roll is strictly
  * below it. Fair multiplier would be 100/target; we pay 99/target, a 1%
  * house edge.
  */
