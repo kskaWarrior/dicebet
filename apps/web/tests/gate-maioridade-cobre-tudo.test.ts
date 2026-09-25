@@ -1,4 +1,5 @@
-import { readdirSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ROTAS_SEM_GATE_MAIORIDADE, exigeGateMaioridade } from "../shared/rotas-sem-gate-maioridade.js";
@@ -7,12 +8,28 @@ import { ROTAS_SEM_GATE_MAIORIDADE, exigeGateMaioridade } from "../shared/rotas-
 // desenho do roletafly (apps/web/tests/gate-maioridade-cobre-tudo.test.ts). O teste roda
 // sobre a REGRA, não sobre o texto-fonte da casca, e cruza as páginas REAIS com ela: uma
 // página nova nasce coberta, e isentá-la exige dizer isso na lista.
+// Recursivo: `pages/x/index.vue` vira `/x` e `pages/x/y.vue` vira `/x/y`, como no Nuxt.
+function rotasDasPaginas(dir: string): string[] {
+  return readdirSync(dir, { recursive: true, encoding: "utf8" })
+    .map((f) => f.replaceAll("\\", "/"))
+    .filter((f) => f.endsWith(".vue"))
+    .map((f) => {
+      const semExt = f.replace(/\.vue$/, "").replace(/(^|\/)index$/, "");
+      return `/${semExt}`;
+    });
+}
+
 const dirPages = join(import.meta.dirname, "..", "pages");
-const rotas = readdirSync(dirPages)
-  .filter((f) => f.endsWith(".vue"))
-  .map((f) => (f === "index.vue" ? "/" : `/${f.replace(/\.vue$/, "")}`));
+const rotas = rotasDasPaginas(dirPages);
 
 describe("gate de maioridade", () => {
+  it("enxerga páginas em subpastas", () => {
+    const dir = mkdtempSync(join(tmpdir(), "pages-"));
+    mkdirSync(join(dir, "x"));
+    for (const f of ["index.vue", "a.vue", "x/index.vue", "x/y.vue"]) writeFileSync(join(dir, f), "");
+    expect(rotasDasPaginas(dir).sort()).toEqual(["/", "/a", "/x", "/x/y"]);
+  });
+
   it("cobre toda página que não esteja explicitamente isenta", () => {
     expect(rotas.length, "não achei as páginas — o diretório mudou de lugar?").toBeGreaterThan(4);
     const cobertas = rotas.filter((rota) => exigeGateMaioridade(false, rota));
