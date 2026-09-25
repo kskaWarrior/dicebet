@@ -15,6 +15,7 @@ const ERROS: Record<string, number> = {
   SHORTENING_SELF_EXCLUSION: 409,
   INVALID_PERIOD: 400,
   INVALID_LIMIT: 400,
+  PLAYER_NOT_FOUND: 404,
 };
 
 export function erroJogoResponsavel(error: unknown): { code: string; status: number } | null {

@@ -59,6 +59,13 @@ jogoResponsavelRouter.post("/self-exclude", async (req, res) => {
 });
 
 jogoResponsavelRouter.post("/age-attestation", async (req, res) => {
-  const ageAttestedAt = await jogoResponsavelDi.atestarMaioridade(req.userId!);
-  return res.json({ ageAttestedAt });
+  try {
+    const ageAttestedAt = await jogoResponsavelDi.atestarMaioridade(req.userId!);
+    return res.json({ ageAttestedAt });
+  } catch (error) {
+    const known = jogoResponsavelDi.erro(error);
+    if (known) return res.status(known.status).json({ error: known.code });
+    console.error("attest_age failed", error);
+    return res.status(500).json({ error: "ATTEST_AGE_FAILED" });
+  }
 });

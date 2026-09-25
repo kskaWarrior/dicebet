@@ -12,6 +12,8 @@ describe("erroJogoResponsavel", () => {
     });
     expect(erroJogoResponsavel(new Error("INVALID_PERIOD"))).toEqual({ code: "INVALID_PERIOD", status: 400 });
     expect(erroJogoResponsavel(new Error("INVALID_LIMIT"))).toEqual({ code: "INVALID_LIMIT", status: 400 });
+    // `attest_age` de um usuário sem perfil: 404, não 500.
+    expect(erroJogoResponsavel(new Error("PLAYER_NOT_FOUND"))).toEqual({ code: "PLAYER_NOT_FOUND", status: 404 });
   });
 
   it("erro desconhecido fica null (a rota devolve 500)", () => {

@@ -180,7 +180,7 @@ describe("jogo responsável", () => {
   describe("autoexclusão", () => {
     const emDias = (d: number) => new Date(Date.now() + d * 86_400_000).toISOString();
 
-    it("bloqueia toda aposta com SELF_EXCLUDED, sem mexer no saldo", async () => {
+    it("bloqueia toda aposta com SELF_EXCLUDED, com saldo líquido inalterado (débito revertido pela saga)", async () => {
       const { userId, apostar } = await jogador("rg-autoexcl");
       expect((await rpc("self_exclude", [userId, emDias(30)])).error).toBeNull();
       const antes = await getBalance(userId);
