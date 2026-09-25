@@ -9,16 +9,17 @@ as fontes de onde foi compilada; as fontes continuam sendo a verdade.
 | # | Peça | Conteúdo | Estado |
 |---|---|---|---|
 | 01 | [Gerador de números](01-gerador-numeros.md) | HMAC sem rótulo, 4 bytes → roll, verificador, evidência estatística; mecanismo comum no [relatório da família](../../../rgs/docs/certificacao/gerador-numeros.md) | pronto, exceto rodada estatística completa e vetores golden |
-| 02 | [Memorial de RTP](02-memorial-rtp.md) | RTP fechado 99 %, truncamento, Monte Carlo de conferência | pronto; achado de RTP < 85 % em stakes mínimas |
-| 03 | [Descrição funcional](03-descricao-funcional.md) | regras, limites, fluxo, erros | pronto |
-| 04 | [Mapeamento normativo](04-mapeamento-normativo.md) | Portarias 722, 1.207, 1.231, 827 e Lei 14.790 → evidência | pronto, com lacunas marcadas |
+| 02 | [Memorial de RTP](02-memorial-rtp.md) | RTP fechado 99 %, truncamento (pior caso 97,06 % na aposta mínima de R$ 0,50), Monte Carlo de conferência | pronto |
+| 03 | [Descrição funcional](03-descricao-funcional.md) | regras, limites de stake, jogo responsável, fluxo, erros | pronto |
+| 04 | [Mapeamento normativo](04-mapeamento-normativo.md) | Portarias 722, 1.207, 1.231, 827 e Lei 14.790 → evidência | pronto; lacunas restantes marcadas (KYC, idioma padrão) |
 | 05 | Este índice | — | — |
 
 ## Fontes primárias
 
 - Regras e justiça: [dicebet-gameplay-and-fairness.md](../../dicebet-gameplay-and-fairness.md)
 - Visão geral: [dicebet-overview.md](../../dicebet-overview.md)
-- Decisões: [ADR-0001](../adr/0001-local-total-pg-direto-gotrue.md), [ADR-0002](../adr/0002-carteira-de-rgs.md)
+- Decisões: [ADR-0001](../adr/0001-local-total-pg-direto-gotrue.md), [ADR-0002](../adr/0002-carteira-de-rgs.md),
+  [ADR-0003](../adr/0003-jogo-responsavel-paridade-roletafly.md) (jogo responsável e aposta mínima)
 - Código do gerador: [`fair.ts`](../../apps/api/src/shared/fair.ts); do pagamento:
   [`calcular-resultado.usecase.ts`](../../apps/api/src/modules/aposta-dice/domain/usecase/calcular-resultado.usecase.ts)
 - **Ausentes neste repo**: `GAME-MATH.md`, `COMPLIANCE.md`, `CONTEXT.md`, `CLAUDE.md` e
@@ -32,19 +33,21 @@ as fontes de onde foi compilada; as fontes continuam sendo a verdade.
 - O mesmo documento diz alvo "em `[1, 98]`" como slider inteiro; a API aceita passos de
   0,01 ([`apostas.route.ts`](../../apps/api/src/modules/aposta-dice/route/apostas.route.ts)).
 - "1% house edge" é o teórico; o RTP efetivo depende da stake (02, "Efeito do
-  truncamento").
+  truncamento"), entre 97,06 % e 99 % desde a aposta mínima de R$ 0,50.
 
 ## Pendências antes da submissão
 
 1. Rodada completa (≥ 10⁸ bits) do Dieharder e do NIST SP 800-22 sobre `rollDigest`, com
    seed e saída anexadas à peça 01
    ([próximos passos do E14](../../../rgs/docs/handoff/2026-09-21-e14-proximos-passos.md)).
-2. Decidir o tratamento de stakes de 1–6 centavos, cujo RTP fica abaixo de 85 % (peça 02).
-3. Registrar o perfil de RTP do DiceBet em `rgs.game_rtp_profiles` (não encontrado).
-4. Escrever `GAME-MATH.md` e `COMPLIANCE.md` (hoje inexistentes) e, se a plataforma
-   exigir, jogo responsável e gate de maioridade (peça 04).
-5. Fixture de vetores golden compartilhada entre `fair.ts` e `fairness.vue` (peça 01).
-6. Relatório de RTP realizado com volume de homologação (peça 02) e reconferência das
+2. Registrar o perfil de RTP do DiceBet em `rgs.game_rtp_profiles` (não encontrado).
+3. Escrever `GAME-MATH.md` e `COMPLIANCE.md` (hoje inexistentes).
+4. Fixture de vetores golden compartilhada entre `fair.ts` e `fairness.vue` (peça 01).
+5. Relatório de RTP realizado com volume de homologação (peça 02) e reconferência das
    portarias no gov.br (peça 04).
-7. Revisão externa por pessoa com experiência em certificação, fora do time (spec E14,
+6. Revisão externa por pessoa com experiência em certificação, fora do time (spec E14,
    US15).
+
+Resolvidos pelo [ADR-0003](../adr/0003-jogo-responsavel-paridade-roletafly.md): RTP abaixo
+de 85 % em stakes de 1–6 centavos (aposta mínima de R$ 0,50, peça 02) e jogo responsável +
+gate de maioridade (peça 04).

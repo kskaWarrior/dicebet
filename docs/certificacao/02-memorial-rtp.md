@@ -67,18 +67,26 @@ Valores exatos, calculados com o gerador e o `floor` reais, no pior alvo (fonte 
 
 | Stake (centavos) | RTP mínimo |
 |---|---|
-| 1 (mínimo aceito) | **49,51 %** (alvo 49,51: paga 1 centavo) |
-| 6 | 84,86 % (alvo 84,86) |
-| 7 | 86,63 % (alvo 86,63) |
-| 98 | ≥ 98 % |
-| 100 | 98,03 % |
-| 100 000 (máximo) | 98,999 % |
+| **50 (mínimo aceito)** | **97,06 %** (alvo 97,06: paga 50, devolve só a stake) |
+| 51 | 97,10 % (alvo 97,10) |
+| 98 | 98,00 % (alvo 98,00) |
+| 100 | 98,03 % (alvo 97,06) |
+| 100 000 (máximo) | 98,999 % (alvo 97,80) |
 
-**Stakes de 1 a 6 centavos têm RTP abaixo de 85 %** em parte dos alvos (ex.: 1 centavo no
-alvo 50 paga 1 centavo, RTP 50 %). Não-conformidade potencial com o piso do Art. 28,
-reportada em [05-indice-submissao.md](05-indice-submissao.md); o dossiê documenta o sistema
-como ele é ([spec E14](../../../roletafly/docs/specs/e14-dossie-certificacao.md),
-"Out of Scope").
+**RTP no mínimo de R$ 0,50, exato.** Stake 50 no alvo 97,06: `floor(50 · 99/97,06) =
+floor(50,9994…) = 50`, ou seja, a vitória só devolve a stake, e o RTP é a própria
+probabilidade de vitória do gerador, `⌈9706 · 2³² / 10000⌉ / 2³² = 4 168 695 258 / 2³²
+= 0,970600000117 → 97,06 %`. É o mínimo sobre **todos** os 9 701 alvos e **todas** as
+stakes aceitas: conferido exaustivamente para stakes de 50 a 2 000 centavos com o gerador
+e o `floor` reais, e acima disso pelo limite `RTP ≥ 0,99 − 0,98/stake ≥ 0,9895`. Fica
+12,06 pp acima do piso de 85 % do Art. 28.
+
+Até a migration [`20260925000001`](../../db/migrations/20260925000001_aposta_minima.sql) o
+mínimo aceito era 1 centavo, e stakes de 1 a 6 centavos tinham RTP abaixo de 85 % em parte
+dos alvos (pior caso 49,51 % com 1 centavo). A aposta mínima de 50 centavos
+([`calcular-resultado.usecase.ts`](../../apps/api/src/modules/aposta-dice/domain/usecase/calcular-resultado.usecase.ts),
+`MIN_STAKE_CENTS`; [ADR-0003](../adr/0003-jogo-responsavel-paridade-roletafly.md)) fecha o
+achado: nenhuma stake aceita fica abaixo do piso.
 
 O produto `stake · (99/alvo)` é calculado em ponto flutuante: quando o valor exato é
 inteiro, o double às vezes fica logo abaixo e o `floor` perde 1 centavo (ex.: stake 99,
@@ -87,18 +95,23 @@ da casa.
 
 ## Limites que afetam o retorno
 
-Stake de 1 a 100 000 centavos por aposta
-([`apostas.route.ts`](../../apps/api/src/modules/aposta-dice/route/apostas.route.ts));
-`validate_bet` só exige `stake > 0`
-([migration 0003](../../db/migrations/0003_carteira_no_rgs.sql)). **Não há teto de
-prêmio**: o maior prêmio possível é 100 000 · 99 = 9 900 000 centavos, sem efeito sobre o
-RTP. Rodadas grátis (E9) usam a mesma fórmula
+Stake de 50 a 100 000 centavos por aposta, aplicado na rota
+([`apostas.route.ts`](../../apps/api/src/modules/aposta-dice/route/apostas.route.ts)) e no
+banco (`validate_bet`, [migration 20260925000001](../../db/migrations/20260925000001_aposta_minima.sql)).
+**Não há teto de prêmio**: o maior prêmio alcançável é `floor(100 000 · 99/1) = 9 900 000`
+centavos (stake máxima no alvo 1), sem efeito sobre o RTP. Os limites que o próprio
+jogador define (aposta máxima, apostas e perda diárias, sessão;
+[migration 20260925000002](../../db/migrations/20260925000002_jogo_responsavel.sql)) só
+recusam apostas — não mudam o pagamento de nenhuma aceita, então não afetam o RTP; uma
+aposta máxima do jogador reduz o prêmio alcançável dele para `stake máxima · 99`. Rodadas grátis (E9) usam a mesma fórmula
 ([migration 0004](../../db/migrations/0004_bonus_e_rodada_gratis.sql)).
 
 ## Verificação automatizada e Monte Carlo
 
 Testes: [`calcular-resultado.usecase.test.ts`](../../apps/api/src/modules/aposta-dice/domain/usecase/calcular-resultado.usecase.test.ts)
-(99/alvo, perda com `roll ≥ alvo`, floor a favor da casa, EV < stake) e
+(99/alvo, perda com `roll ≥ alvo`, floor a favor da casa, EV < stake),
+[`stake.usecase.test.ts`](../../apps/api/src/modules/aposta-dice/domain/usecase/stake.usecase.test.ts)
+(stake de 50 a 100 000, e o mesmo intervalo na SQL de `validate_bet`) e
 [`fair.test.ts`](../../apps/api/src/shared/fair.test.ts) (taxa de vitória ≈ alvo %). Não
 há teste do RTP exato em aritmética racional nem do limite de truncamento.
 
