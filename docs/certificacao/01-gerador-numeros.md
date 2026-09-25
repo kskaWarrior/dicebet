@@ -37,7 +37,10 @@ exposto antes da aposta (`GET /seeds/current`); rotação revela a seed anterior
 (`POST /seeds/rotate`) — [`seeds.route.ts`](../../apps/api/src/modules/aposta-dice/route/seeds.route.ts).
 O nonce é reivindicado fora da transação de liquidação, para que um rollback nunca o
 devolva ([`apostar.usecase.ts`](../../apps/api/src/modules/aposta-dice/domain/usecase/apostar.usecase.ts)),
-e `unique (seed_id, nonce)` no banco dispara `NONCE_ALREADY_USED`
+e a reutilização dispara `NONCE_ALREADY_USED` na guarda de `wallet_ops` da saga:
+`unique (operator, game, round_id, kind)` em `rgs.wallet_ops`, com `round_id = seed:nonce`
+([`aposta.repository.ts`](../../apps/api/src/modules/aposta-dice/repository/aposta.repository.ts)).
+O `unique (seed_id, nonce)` em `bets` fica como segunda barreira
 ([ADR-0002](../adr/0002-carteira-de-rgs.md), item 3).
 
 ## Verificabilidade pelo jogador

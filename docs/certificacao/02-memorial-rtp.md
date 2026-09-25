@@ -68,7 +68,8 @@ Valores exatos, calculados com o gerador e o `floor` reais, no pior alvo (fonte 
 | Stake (centavos) | RTP mínimo |
 |---|---|
 | 1 (mínimo aceito) | **49,51 %** (alvo 49,51: paga 1 centavo) |
-| 7 | ≥ 85 % |
+| 6 | 84,86 % (alvo 84,86) |
+| 7 | 86,63 % (alvo 86,63) |
 | 98 | ≥ 98 % |
 | 100 | 98,03 % |
 | 100 000 (máximo) | 98,999 % |
@@ -106,6 +107,14 @@ Conferência Monte Carlo na elaboração deste memorial (algoritmo idêntico ao 
 `client:0` … `client:1999999`): alvo 50, stake 100, 2 · 10⁶ apostas → RTP 99,137 %,
 IC 95 % ± 0,137 pp, compatível com o valor exato 99,00 %. É evidência complementar; o RTP
 declarado vem da forma fechada.
+
+Reprodução (Node ≥ 18, na raiz do repositório; imprime `0.99137313`):
+
+```sh
+node -e 'const {createHmac}=require("node:crypto");let w=0;const N=2e6;for(let i=0;i<N;i++){const d=createHmac("sha256","mc-seed-e14-dicebet").update(`client:${i}`).digest();const r=Math.floor(d.readUInt32BE(0)/2**32*10000)/100;if(r<50)w+=Math.floor(100*(99/50))}console.log((w/(N*100)).toFixed(8))'
+```
+
+O IC usa EP = 0,99/√(2 · 10⁶).
 
 ## RTP realizado (evidência complementar)
 

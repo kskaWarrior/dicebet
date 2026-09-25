@@ -55,8 +55,12 @@ Códigos devolvidos pela API ([`apostas.route.ts`](../../apps/api/src/modules/ap
 `INVALID_BET` (400, corpo inválido), `INVALID_STAKE` (400), `INSUFFICIENT_FUNDS` (422),
 `NONCE_ALREADY_USED` (409), `UNKNOWN_FREE_ROUND` (404), `FREE_ROUND_EXPIRED`,
 `FREE_ROUND_CANCELLED`, `FREE_ROUND_EXHAUSTED` (409), `FREE_ROUND_STAKE_MISMATCH` (400),
-`BET_FAILED` (500), `INVALID_CLIENT_SEED` (400). Sessão:
-`INVALID_BODY`, `DEMO_REQUIRES_AUTH`, `OPERATOR_NOT_CONFIGURED` (400). A UI traduz os
+`BET_FAILED` (500), `INVALID_CLIENT_SEED` (400). `SEED_NOT_ACTIVE`
+([`seed.repository.ts`](../../apps/api/src/modules/aposta-dice/repository/seed.repository.ts)) não é
+mapeado e chega ao cliente como `BET_FAILED` (500). Sessão:
+`INVALID_BODY`, `DEMO_REQUIRES_AUTH`, `OPERATOR_NOT_CONFIGURED` (400),
+`INVALID_LAUNCH_TOKEN` (401). Autenticação (todas as rotas protegidas,
+[`auth.ts`](../../apps/api/src/shared/auth.ts)): `MISSING_TOKEN`, `INVALID_TOKEN` (401). A UI traduz os
 casos principais em [`useI18n.ts`](../../apps/web/composables/useI18n.ts) (en/pt/es).
 
 ## Registro auditável
