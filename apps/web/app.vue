@@ -1,9 +1,34 @@
 <script setup lang="ts">
+import { calcularSessao } from "./shared/jogo-responsavel.js";
+import { exigeGateMaioridade } from "./shared/rotas-sem-gate-maioridade.js";
+
 const auth = useAuth();
 const balance = useBalance();
 const loggedIn = ref(false);
 const { t, locale, initLocale } = useI18n();
 const { initTheme } = useTheme();
+const route = useRoute();
+
+// Gate 18+ na casca, e não numa página: é o único ponto por onde toda rota passa (mesmo
+// desenho do roletafly). A lista de isenções e o teste que prende a cobertura moram em
+// `shared/rotas-sem-gate-maioridade.ts` / `tests/gate-maioridade-cobre-tudo.test.ts`.
+const { attested, init: initAgeGate, confirm: confirmarIdade } = useAgeGate();
+const exigeIdade = computed(() => exigeGateMaioridade(attested.value, route.path));
+
+// Relógio de sessão sempre visível quando logado (mesma regra de gap de 30 min que
+// `settle_bet` aplica). Recarrega o estado a cada minuto e a cada navegação — uma aposta
+// aceita move `session_last_seen_at`.
+const { estado: estadoRg, carregar: carregarRg } = useJogoResponsavel();
+const agora = ref(Date.now());
+const sessao = computed(() => calcularSessao(estadoRg.value, agora.value));
+let relogio: ReturnType<typeof setInterval> | undefined;
+watch(
+  () => route.path,
+  () => {
+    if (loggedIn.value) carregarRg().catch(() => {});
+  },
+);
+onBeforeUnmount(() => relogio && clearInterval(relogio));
 
 useHead({ htmlAttrs: { lang: computed(() => (locale.value === "pt" ? "pt-BR" : locale.value)) } });
 
@@ -13,10 +38,22 @@ onMounted(async () => {
   initCrashReporting();
   const { data } = await auth.getSession();
   loggedIn.value = !!data.session;
+  await initAgeGate();
   auth.onAuthStateChange((_event, session) => {
+    const entrou = !!session && !loggedIn.value;
     loggedIn.value = !!session;
-    if (!session) balance.value = null;
+    if (!session) {
+      balance.value = null;
+      estadoRg.value = null;
+    }
+    // Entrou agora: a conta pode já estar atestada (outro dispositivo), ou o dispositivo
+    // já atestado sobe a declaração para a conta.
+    if (entrou) initAgeGate();
   });
+  relogio = setInterval(() => {
+    agora.value = Date.now();
+    if (loggedIn.value) carregarRg().catch(() => {});
+  }, 60_000);
 });
 
 async function signOut() {
@@ -40,13 +77,42 @@ async function signOut() {
         <NuxtLink to="/">{{ t("nav.play") }}</NuxtLink>
         <NuxtLink to="/history">{{ t("nav.history") }}</NuxtLink>
         <NuxtLink to="/fairness">{{ t("nav.fairness") }}</NuxtLink>
+        <NuxtLink to="/limits">{{ t("nav.limits") }}</NuxtLink>
+        <NuxtLink to="/responsible-gaming">{{ t("nav.responsible") }}</NuxtLink>
+        <span
+          v-if="estadoRg"
+          class="session-clock"
+          :class="{ warn: sessao.perto, over: sessao.atingido }"
+        >
+          {{
+            sessao.limiteMinutos !== null
+              ? t("session.clockLimit", { min: sessao.minutos, limit: sessao.limiteMinutos })
+              : t("session.clock", { min: sessao.minutos })
+          }}
+        </span>
         <span class="balance">{{ formatCents(balance) }}</span>
         <button class="signout" @click="signOut">{{ t("nav.signout") }}</button>
       </nav>
     </header>
     <main>
-      <NuxtPage />
+      <div v-if="exigeIdade" class="age-gate">
+        <h1>{{ t("agegate.title") }}</h1>
+        <p>{{ t("agegate.text") }}</p>
+        <label>
+          <input
+            type="checkbox"
+            :checked="false"
+            @change="(e) => (e.target as HTMLInputElement).checked && confirmarIdade()"
+          />
+          {{ t("agegate.checkbox") }}
+        </label>
+        <p><NuxtLink to="/responsible-gaming">{{ t("nav.responsible") }}</NuxtLink></p>
+      </div>
+      <NuxtPage v-else />
     </main>
+    <footer>
+      <p>{{ t("footer.responsible") }}</p>
+    </footer>
   </div>
 </template>
 
@@ -142,6 +208,29 @@ header nav {
   border-bottom: 1px solid var(--border);
 }
 .signout { margin-left: auto; padding: 0.35rem 0.8rem; font-size: 0.9rem; }
+.session-clock {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+.session-clock.warn { color: #fcd34d; }
+.session-clock.over { color: #fca5a5; font-weight: 600; }
+.age-gate {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+}
+.age-gate label { display: flex; gap: 0.5rem; align-items: center; }
+footer {
+  margin-top: 2rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: center;
+}
 .logo { font-size: 1.3rem; font-weight: 700; color: inherit; }
 .balance {
   background: #14532d;
