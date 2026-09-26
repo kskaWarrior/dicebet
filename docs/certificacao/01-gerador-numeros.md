@@ -58,8 +58,12 @@ com o nonce, faixa `[0, 100)` com duas casas, compromisso e uniformidade aproxim
 O digest cru é exportado por `rollDigest` em [`fair.ts`](../../apps/api/src/shared/fair.ts)
 e amostrado pelo script único da família
 [`rgs/scripts/nist-dieharder.ts`](../../../rgs/scripts/nist-dieharder.ts), que importa a
-função de produção (não uma cópia). Estado em 2026-09-25: Dieharder em modo reduzido
-aprovado; a rodada completa (≥ 10⁸ bits) e o NIST SP 800-22 ainda não foram executados —
-ver [`rgs/docs/handoff/2026-09-21-e14-proximos-passos.md`](../../../rgs/docs/handoff/2026-09-21-e14-proximos-passos.md).
+função de produção (não uma cópia). Estado em 2026-09-26: **Dieharder completo executado** — estágio A (30 testes do `-a` menos
+`rgb_lagged_sum`, `-p 100`, ≈ 1,9·10¹¹ bits): 79 PASSED, 2 WEAK, 0 FAILED em 81 linhas; estágio B (`rgb_lagged_sum`, 33
+variantes, `-p 20`): 33 PASSED, 0 WEAK, 0 FAILED. Na repetição isolada, os 2 WEAK (diehard_bitstream, rgb_permutations ntup 3) passaram na repetição com semente nova. Logs em
+[`rgs/docs/certificacao/dieharder-full-2026-09-26/`](../../../rgs/docs/certificacao/dieharder-full-2026-09-26/)
+(`dicebet-a-*.txt`, `dicebet-b-*.txt`, `retestes/`); método, exclusão do `rgb_lagged_sum` do estágio A e
+psamples reduzidos em [`gerador-numeros.md` §7](../../../rgs/docs/certificacao/gerador-numeros.md).
+O NIST SP 800-22 ainda não foi executado.
 Observação ao laboratório: o script amostra o digest inteiro (32 bytes), mas o jogo consome
 só os bytes 0..3.
