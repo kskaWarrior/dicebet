@@ -159,3 +159,11 @@ reprova estatística do RTP — isso já está coberto pela derivação fechada 
 maior (e por período mais longo) converge para 99 % pela lei dos grandes números, mas não é
 o que este relatório se propõe a demonstrar (mesmo padrão do roletafly/plinkofly,
 [`rgs/docs/handoff/2026-09-26-e14-us16-rtp-realizado-roletafly.md`](../../../rgs/docs/handoff/2026-09-26-e14-us16-rtp-realizado-roletafly.md)).
+
+**IC 95 % esperado para N = 2.429.** Simulação Monte Carlo (20.000 repetições de 2.429
+apostas, replicando a amostragem de alvo/stake de `scripts/bots.mjs` e a fórmula de
+pagamento de produção) dá um intervalo de confiança de 95 % de **[86,5 %; 114,8 %]** para o
+RTP observado com essa amostra — o valor medido (101,09 %) cai dentro dele. Script
+versionado
+[`rgs/scripts/simular-ic-rtp-realizado.mjs`](../../../rgs/scripts/simular-ic-rtp-realizado.mjs)
+(`node scripts/simular-ic-rtp-realizado.mjs`, ~1 min).
