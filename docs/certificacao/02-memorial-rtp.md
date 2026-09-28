@@ -133,7 +133,29 @@ O IC usa EP = 0,99/√(2 · 10⁶).
 ## RTP realizado (evidência complementar)
 
 O RTP observado em operação é reportado pela retaguarda do operador (E11) em
-`GET /relatorios/rtp` ([`relatorios.route.ts`](../../../rgs/apps/rgs-api/src/modules/relatorios/route/relatorios.route.ts)),
-que lê o replay do DiceBet (`dicebet.replay_dados`,
-[migration 0006](../../db/migrations/0006_replay_dados.sql)). Ambiente de demonstração:
-ainda sem volume estatisticamente significativo.
+`GET /relatorios/rtp`
+([`relatorios.route.ts`](../../../rgs/apps/rgs-api/src/modules/relatorios/route/relatorios.route.ts)),
+que lê `rgs.rtp_realizado(operatorId, game, de, ate)` sobre `rgs.ledger`/`rgs.wallet_ops` —
+só o operador `demo` (o único cuja carteira vive dentro da plataforma) tem dado ali.
+
+**Evidência em 2026-09-28 — primeiro volume real, operador `demo`.** Bots de demo
+([`scripts/bots.mjs`](../../scripts/bots.mjs) — novo nesta sessão, o dicebet não tinha
+sidecar de bots; assina o próprio JWT local em vez de passar por GoTrue, já que
+`shared/auth.ts` só confere a assinatura HS256 do Bearer token) jogaram por ~63 min
+(2026-09-28T02:21–03:24Z), alvo sorteado entre 8 valores fixos (2 a 95):
+
+| Apostas | Jogadores | Stake | Payout | GGR | RTP observado |
+|---|---|---|---|---|---|
+| 2.429 | 24 | R$ 9.358,50 | R$ 9.460,04 | −R$ 101,54 | **101,0850 %** |
+
+(`rgs.ggr_realizado`/`rgs.rtp_realizado` do operador `demo`, período acima; "24 jogadores"
+porque o processo de bots foi reiniciado 2x durante o ajuste do intervalo entre apostas —
+cada reinício assina um novo `sub` — não são 24 jogadores distintos de verdade.)
+
+O RTP teórico é 99 % (uniforme em todo alvo); o observado (101,09 %) fica acima por
+variância de amostra pequena, não defeito. **O que esta evidência prova é o cano ponta a
+ponta** (sessão → aposta → liquidação → `rgs.ledger` → relatório da retaguarda), não uma
+reprova estatística do RTP — isso já está coberto pela derivação fechada acima. Volume
+maior (e por período mais longo) converge para 99 % pela lei dos grandes números, mas não é
+o que este relatório se propõe a demonstrar (mesmo padrão do roletafly/plinkofly,
+[`rgs/docs/handoff/2026-09-26-e14-us16-rtp-realizado-roletafly.md`](../../../rgs/docs/handoff/2026-09-26-e14-us16-rtp-realizado-roletafly.md)).
