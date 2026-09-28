@@ -167,3 +167,14 @@ RTP observado com essa amostra — o valor medido (101,09 %) cai dentro dele. Sc
 versionado
 [`rgs/scripts/simular-ic-rtp-realizado.mjs`](../../../rgs/scripts/simular-ic-rtp-realizado.mjs)
 (`node scripts/simular-ic-rtp-realizado.mjs`, ~1 min).
+
+**Segunda sessão (mais volume, 2026-09-28).** Seguindo o item "rodar por mais tempo" dos
+próximos passos, mais uma rodada de 8 bots por ~1h, operador `demo`:
+
+| Apostas | Stake | Payout | RTP observado |
+|---|---|---|---|
+| 2.205 | R$ 9.860,00 | R$ 9.717,97 | **98,5595 %** |
+
+IC 95 % esperado para N = 2.205: [86,1 %; 115,5 %] — o observado cai dentro, e desta vez
+bem mais perto do teórico (98,56 % vs 101,09 % na primeira sessão), consistente com a
+convergência esperada pela lei dos grandes números.
