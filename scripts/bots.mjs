@@ -55,7 +55,6 @@ const counters = { bets: 0, wins: 0, losses: 0, refills: 0, errors: 0 };
 function createBot(i) {
   const email = `bot-${String(i + 1).padStart(2, "0")}@dicebet.dev`;
   const sub = randomUUID();
-  const token = signToken(sub, email);
   const stakeMu = Math.log(150 + Math.random() * 350);
   const stakeSigma = 0.6;
   const pauseMs = () => 6000 + Math.random() * 14000;
@@ -63,9 +62,11 @@ function createBot(i) {
   const log = (...args) => console.log(`[${email.slice(0, 6)}]`, ...args);
 
   const rest = async (path, init = {}) => {
+    // Assina um token novo a cada request (HMAC local, sem custo) em vez de reusar um só —
+    // um `exp` de 1h não sobrevive a uma sessão de bots de várias horas.
     const res = await fetch(`${API}${path}`, {
       ...init,
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...init.headers },
+      headers: { Authorization: `Bearer ${signToken(sub, email)}`, "Content-Type": "application/json", ...init.headers },
     });
     const body = await res.text().then((t) => (t ? JSON.parse(t) : {}));
     return { ok: res.ok, status: res.status, body };
