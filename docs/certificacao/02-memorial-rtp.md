@@ -178,3 +178,17 @@ próximos passos, mais uma rodada de 8 bots por ~1h, operador `demo`:
 IC 95 % esperado para N = 2.205: [86,1 %; 115,5 %] — o observado cai dentro, e desta vez
 bem mais perto do teórico (98,56 % vs 101,09 % na primeira sessão), consistente com a
 convergência esperada pela lei dos grandes números.
+
+**Terceira sessão (volume bem maior, 8h, 2026-09-30).** 8 bots por 8h completas, operador
+`demo`, com monitor de saúde a cada 20 min (nenhum alerta; ver
+[`rgs/docs/handoff/2026-09-30-e14-us16-terceira-sessao-dicebet-plinkofly.md`](../../../rgs/docs/handoff/2026-09-30-e14-us16-terceira-sessao-dicebet-plinkofly.md)).
+Janela: apostas com `created_at > 2026-09-30 14:58:11 UTC` até 22:58 UTC.
+
+| Apostas | Stake | Payout | RTP observado |
+|---|---|---|---|
+| 17.663 | R$ 62.375,00 | R$ 63.310,29 | **101,4995 %** |
+
+IC 95 % esperado para N = 17.663: [94,0 %; 104,4 %] — o observado cai dentro. Fica acima do
+teórico (99 %), como na primeira sessão, mas é a amostra ~8x maior de todas e o IC segue
+cobrindo; alvos agressivos (2 %, 10 %) dão payouts de até 49,5x, então a variância por aposta
+é alta e 2,5 p.p. acima está dentro do esperado. Sem indício de bug.
