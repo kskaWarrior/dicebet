@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: parcialmente superada pelo ADR-0002
 ---
 
 # DiceBet adota as decisões 0010–0012 do roletafly: pg direto, porta de auth GoTrue, RLS por jogador removida (ADR-0001)
@@ -63,3 +63,18 @@ Adotamos as três decisões do roletafly como estão, com estes deltas do DiceBe
 - `mobile.yml` ainda lê as vars `SUPABASE_URL`/`SUPABASE_ANON_KEY`: quando a infra voltar,
   viram `AUTH_URL` + `API_BASE` — registrado como pendência, não feito agora porque o
   workflow está desligado.
+
+## Nota (2026-10-05)
+
+Revisão contra o código atual. Continua valendo: porta `Db` sobre `pg` (agora via
+`criarDbTransacional` do `@kskawarrior/rgs-core`, em `apps/api/src/shared/db.ts`), auth com
+exatamente um de `AUTH_JWKS_URL`/`AUTH_JWT_SECRET` (`apps/api/src/shared/env.ts`),
+`ensure_player` em toda requisição autenticada (`apps/api/src/shared/auth.ts`), `GoTrueClient`
+com `storageKey: "dicebet-auth"` (`apps/web/composables/useAuth.ts`), UPDATE direto em
+`user_seeds` na rotação (`apps/api/src/modules/aposta-dice/repository/seed.repository.ts`) e
+`deploy-api.yml`/`mobile.yml` só por `workflow_dispatch`. Superado pelo
+[ADR-0002](0002-carteira-de-rgs.md): Stripe e as rotas `/deposits`/`/stripe/webhook` saíram;
+`wallets`/`transactions`/`place_bet`/`apply_deposit` deram lugar à carteira `rgs.demo_wallets`
+(`db/migrations/0003_carteira_no_rgs.sql`); o Postgres e o GoTrue próprios (portas
+52321/52322) saíram do `docker-compose.yml`, que agora sobe sobre o compose do repo `rgs`.
+Os caminhos `apps/api/src/db.ts`, `auth.ts` e `env.ts` mudaram para `apps/api/src/shared/`.
