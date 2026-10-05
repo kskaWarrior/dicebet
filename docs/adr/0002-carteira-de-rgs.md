@@ -98,3 +98,16 @@ com liquidação atômica.
 - Sem `player_limits`/autoexclusão: se um regulador ou a plataforma exigirem RG por jogo
   no DiceBet, é trabalho novo — não um retrofit escondido nesta migração. (Feito no
   [ADR-0003](0003-jogo-responsavel-paridade-roletafly.md).)
+
+## Nota (2026-10-05)
+
+Revisão contra o código atual. Itens 1, 3–6, 8 e 9 continuam valendo. Item 7 (arquitetura
+flat) foi superado na prática: a API passou ao layout feature-first
+(`apps/api/src/modules/{aposta-dice,carteira,jogo-responsavel,sessao}/` com
+`domain/usecase/repository/route/di`), imposto por `eslint-plugin-boundaries`
+(`eslint.config.mjs`); `settleBetSaga` continua função exportada, mas mora em
+`apps/api/src/modules/aposta-dice/repository/aposta.repository.ts`, não em `routes/bets.ts`,
+e `db.ts` está em `apps/api/src/shared/db.ts`. O `@kskawarrior/rgs-core` está em `^0.12.0`
+(`apps/api/package.json`), não mais 0.7.0. Também entrou, de forma aditiva, `POST /sessions`
+(`apps/api/src/modules/sessao/`, E13) com `criarAbrirSessao` do pacote; as demais rotas seguem
+em GoTrue.
