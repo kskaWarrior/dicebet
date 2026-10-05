@@ -111,3 +111,5 @@ e `db.ts` está em `apps/api/src/shared/db.ts`. O `@kskawarrior/rgs-core` está 
 (`apps/api/package.json`), não mais 0.7.0. Também entrou, de forma aditiva, `POST /sessions`
 (`apps/api/src/modules/sessao/`, E13) com `criarAbrirSessao` do pacote; as demais rotas seguem
 em GoTrue.
+
+- Item 7 (API plana) substituído pelo [ADR-0004](0004-modulos-feature-first-e-boundaries.md).

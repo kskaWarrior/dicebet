@@ -18,7 +18,7 @@ export interface AbrirSessaoInput {
  * Abrir sessão é raro (uma vez por sessão, não por aposta), então a consulta extra não
  * está no caminho quente.
  *
- * Exceção de forma (ADR de boundaries desta migração, mesma exceção de plinkofly/roletafly):
+ * Exceção de forma (docs/adr/0004-modulos-feature-first-e-boundaries.md, mesma de plinkofly/roletafly):
  * `sessao` não tem domain/repository próprios — a lógica real vive inteira no `rgs-core`.
  *
  * Aditivo (E13): as rotas EXISTENTES (bets/seeds/wallet) não foram migradas para o token
