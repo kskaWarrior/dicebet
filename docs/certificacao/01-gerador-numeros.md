@@ -64,6 +64,6 @@ variantes, `-p 20`): 33 PASSED, 0 WEAK, 0 FAILED. Na repetição isolada, os 2 W
 [`rgs/docs/certificacao/dieharder-full-2026-09-26/`](../../../rgs/docs/certificacao/dieharder-full-2026-09-26/)
 (`dicebet-a-*.txt`, `dicebet-b-*.txt`, `retestes/`); método, exclusão do `rgb_lagged_sum` do estágio A e
 psamples reduzidos em [`gerador-numeros.md` §7](../../../rgs/docs/certificacao/gerador-numeros.md).
-O NIST SP 800-22 ainda não foi executado.
+NIST SP 800-22 (STS, fork arcetri/sts) executado em 2026-09-26 sobre a mesma fonte e semente fixa do Dieharder, 1000 bitstreams de 2²⁰ bits (~125 MiB): na primeira rodada, 1/148 do Non-overlapping Template Matching e o Cumulative Sums reprovaram por proporção; um template diferente reprovou na segunda semente e a terceira saiu limpa (188/188) (`retestes/dicebet`, `retestes/dicebet2`). Método e análise no [relatório da família, §7](../../../rgs/docs/certificacao/gerador-numeros.md); logs em [`rgs/docs/certificacao/nist-sts-2026-09-26/`](../../../rgs/docs/certificacao/nist-sts-2026-09-26/).
 Observação ao laboratório: o script amostra o digest inteiro (32 bytes), mas o jogo consome
 só os bytes 0..3.

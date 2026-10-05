@@ -8,7 +8,7 @@ as fontes de onde foi compilada; as fontes continuam sendo a verdade.
 
 | # | Peça | Conteúdo | Estado |
 |---|---|---|---|
-| 01 | [Gerador de números](01-gerador-numeros.md) | HMAC sem rótulo, 4 bytes → roll, verificador, evidência estatística; mecanismo comum no [relatório da família](../../../rgs/docs/certificacao/gerador-numeros.md) | pronto, exceto NIST SP 800-22 e vetores golden (Dieharder completo executado em 2026-09-26) |
+| 01 | [Gerador de números](01-gerador-numeros.md) | HMAC sem rótulo, 4 bytes → roll, verificador, evidência estatística; mecanismo comum no [relatório da família](../../../rgs/docs/certificacao/gerador-numeros.md) | pronto, exceto vetores golden (Dieharder e NIST SP 800-22 completos em 2026-09-26) |
 | 02 | [Memorial de RTP](02-memorial-rtp.md) | RTP fechado 99 %, truncamento (pior caso 97,06 % na aposta mínima de R$ 0,50), Monte Carlo de conferência, RTP realizado (operador `demo`, três sessões de bots) | pronto |
 | 03 | [Descrição funcional](03-descricao-funcional.md) | regras, limites de stake, jogo responsável, fluxo, erros | pronto |
 | 04 | [Mapeamento normativo](04-mapeamento-normativo.md) | Portarias 722, 1.207, 1.231, 827 e Lei 14.790 → evidência | pronto; lacunas restantes marcadas (KYC, idioma padrão) |
@@ -42,8 +42,8 @@ Corrigidas em [dicebet-gameplay-and-fairness.md](../../dicebet-gameplay-and-fair
 
 ## Pendências antes da submissão
 
-1. Rodada completa (≥ 10⁸ bits) do NIST SP 800-22 sobre `rollDigest`, com seed e saída
-   anexadas à peça 01 (o Dieharder completo já foi executado em 2026-09-26)
+1. ~~Rodada completa (≥ 10⁸ bits) do NIST SP 800-22 sobre `rollDigest`, com seed e saída
+   anexadas à peça 01~~ — feito em 2026-09-26 junto com o Dieharder (ver peça 01)
    ([próximos passos do E14](../../../rgs/docs/handoff/2026-09-21-e14-proximos-passos.md)).
 2. Escrever `GAME-MATH.md` e `COMPLIANCE.md` (hoje inexistentes).
 3. Fixture de vetores golden compartilhada entre `fair.ts` e `fairness.vue` (peça 01).
