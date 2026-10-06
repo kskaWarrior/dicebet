@@ -16,10 +16,10 @@ import {
 // antes, como superusuário. `dbApi` é o role da API, para provar que os GRANTs bastam —
 // e param onde devem.
 export const DATABASE_URL =
-  process.env.DATABASE_URL ?? "postgres://postgres:postgres@127.0.0.1:57332/rgs";
+  process.env.DATABASE_URL ?? "postgres://postgres:postgres@127.0.0.1:57332/dicebet_teste";
 export const API_DATABASE_URL =
   process.env.API_DATABASE_URL ??
-  `postgres://dicebet_api:${process.env.API_DB_PASSWORD ?? "dicebet_api"}@127.0.0.1:57332/rgs`;
+  `postgres://dicebet_api:${process.env.API_DB_PASSWORD ?? "dicebet_api"}@127.0.0.1:57332/dicebet_teste`;
 
 pg.types.setTypeParser(20, (v) => Number(v));
 pg.types.setTypeParser(1700, (v) => Number(v));
