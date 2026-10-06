@@ -77,6 +77,11 @@ contra o Postgres do repo `rgs` (reaplica os schemas `rgs` e `dicebet` do zero:
 jogo, a saga da carteira — `débito → settle_bet → crédito`, replay, RLS por operador).
 `npm run db:migrate` aplica os dois schemas sem reset.
 
+`npm run test:integration` roda [scripts/test-integration.mjs](scripts/test-integration.mjs): cria (na
+primeira vez) e usa o banco próprio `dicebet_teste` no Postgres do `rgs`, com os migrates em `--reset`
+só nele — o banco `rgs`, compartilhado com os outros jogos, não é tocado. `TEST_DB` troca o
+nome do banco; `PG_HOST` o servidor (padrão `127.0.0.1:57332`).
+
 ## Deploy (desativado)
 
 [deploy-api.yml](.github/workflows/deploy-api.yml) (Cloud Run) e

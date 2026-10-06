@@ -7,7 +7,7 @@ export default defineConfig({
   test: {
     include: ["tests/**/*.integration.test.ts"],
     env: {
-      DATABASE_URL: process.env.DATABASE_URL ?? "postgres://postgres:postgres@127.0.0.1:57332/rgs",
+      DATABASE_URL: process.env.DATABASE_URL ?? "postgres://postgres:postgres@127.0.0.1:57332/dicebet_teste",
       // auth.integration.test.ts assina tokens com este segredo e importa
       // src/auth.ts, que exige a config de auth no import (env.ts).
       AUTH_JWT_SECRET: "segredo-de-teste",
