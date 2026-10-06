@@ -66,7 +66,10 @@ const boundariesPolicies = [
 ];
 
 export default tseslint.config(
-  { ignores: ["**/node_modules/**", "**/dist/**"] },
+  {
+    // Artefatos gerados: tipos do Nuxt, build do Nitro e os projetos nativos do Capacitor.
+    ignores: ["**/node_modules/**", "**/dist/**", "**/.nuxt/**", "**/.output/**", "apps/web/android/**", "apps/web/ios/**"],
+  },
   js.configs.recommended,
   tseslint.configs.recommended,
   { languageOptions: { ecmaVersion: 2023, sourceType: "module" } },
@@ -92,6 +95,7 @@ export default tseslint.config(
         clearTimeout: "readonly",
         setInterval: "readonly",
         clearInterval: "readonly",
+        Buffer: "readonly",
       },
     },
   },
